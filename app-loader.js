@@ -19,24 +19,50 @@
     const line=document.createElement('div');line.className='stage3-word-line';
     const before=document.createElement('span');before.textContent=word.word.slice(0,span.start);
     const group=document.createElement('div');group.className='stage3-input-group';
-    const input=document.createElement('input');input.className='gap-input stage3-real-input';input.autocomplete='off';input.spellcheck=false;input.maxLength=span.correct.length;input.setAttribute('aria-label','Type missing letters');
-    const slots=document.createElement('div');slots.className='stage3-slot-row';
+    const row=document.createElement('div');row.className='stage3-slot-row';
+    const aggregate=document.createElement('input');
+    aggregate.type='text';aggregate.className='stage3-aggregate-input';aggregate.tabIndex=-1;aggregate.setAttribute('aria-hidden','true');
+    const boxes=[];
+
+    const sync=()=>{aggregate.value=boxes.map(b=>(b.value||'').toLowerCase()).join('')};
+    const focusBest=()=>{
+      let idx=boxes.findIndex((b,i)=>(b.value||'').toLowerCase()!==span.correct[i]);
+      if(idx<0) idx=Math.max(0,boxes.length-1);
+      boxes[idx]?.focus();boxes[idx]?.select?.();
+    };
+
     for(let i=0;i<span.correct.length;i++){
-      const slot=document.createElement('span');slot.className='stage3-letter-slot';slot.dataset.local=String(i);slots.appendChild(slot);
+      const box=document.createElement('input');
+      box.type='text';box.inputMode='text';box.autocomplete='off';box.spellcheck=false;box.maxLength=1;
+      box.className='stage3-letter-slot stage3-letter-box';box.dataset.local=String(i);box.setAttribute('aria-label',`Missing letter ${i+1}`);
+      box.addEventListener('input',()=>{
+        let v=(box.value||'').toLowerCase().replace(/[^a-z]/g,'');
+        if(v.length>1)v=v.slice(-1);
+        box.value=v;box.classList.toggle('filled',!!v);sync();
+        if(v&&i<boxes.length-1){boxes[i+1].focus();boxes[i+1].select?.()}
+      });
+      box.addEventListener('keydown',e=>{
+        if(e.key==='Backspace'&&!box.value&&i>0){e.preventDefault();boxes[i-1].value='';boxes[i-1].classList.remove('filled');sync();boxes[i-1].focus()}
+        else if(e.key==='ArrowLeft'&&i>0){e.preventDefault();boxes[i-1].focus()}
+        else if(e.key==='ArrowRight'&&i<boxes.length-1){e.preventDefault();boxes[i+1].focus()}
+        else if(e.key==='Enter'){e.preventDefault();wrap.querySelector('.submit-answer')?.click()}
+      });
+      box.addEventListener('paste',e=>{
+        const text=(e.clipboardData?.getData('text')||'').toLowerCase().replace(/[^a-z]/g,'');if(!text)return;
+        e.preventDefault();[...text].forEach((ch,j)=>{const target=boxes[i+j];if(target){target.value=ch;target.classList.add('filled')}});sync();
+        boxes[Math.min(i+text.length,boxes.length-1)]?.focus();
+      });
+      boxes.push(box);row.appendChild(box);
     }
-    group.append(input,slots);
+
+    group.append(row,aggregate);
     const after=document.createElement('span');after.textContent=word.word.slice(span.end+1);
     line.append(before,group,after);
     const submit=document.createElement('button');submit.className='primary-btn submit-answer';submit.textContent='Check';
-    const sync=()=>{
-      const chars=(input.value||'').toLowerCase().split('');
-      $$('.stage3-letter-slot',slots).forEach((slot,i)=>{slot.textContent=chars[i]||'';slot.classList.toggle('filled',!!chars[i])});
-    };
-    input.addEventListener('input',sync);
-    group.addEventListener('click',()=>input.focus());
-    const go=()=>checkTyped(input,input.value.toLowerCase().trim()===span.correct,input.value.toLowerCase().trim(),word,task,span.correct);
-    submit.onclick=go; input.onkeydown=e=>{if(e.key==='Enter')go()};
-    wrap.append(line,submit);area.appendChild(wrap);setTimeout(()=>input.focus(),50);
+    const go=()=>{sync();const attempt=aggregate.value.toLowerCase().trim();checkTyped(aggregate,attempt===span.correct,attempt,word,task,span.correct);setTimeout(focusBest,20)};
+    submit.onclick=go;
+    aggregate.select=focusBest;aggregate.focus=focusBest;
+    wrap.append(line,submit);area.appendChild(wrap);setTimeout(()=>boxes[0]?.focus(),50);
   }
 
   function showHint(){
@@ -45,10 +71,8 @@
     playWordAudio(word,true);
 
     const help=$('#helpPanel');if(help){help.className='help-panel hidden';help.innerHTML=''}
-    const old=$('.typing-hint-strip');if(old)old.remove();
-    const oldTrack=$('.stage4-hint-track');if(oldTrack)oldTrack.remove();
-    $$('.stage3-letter-slot').forEach(x=>x.classList.remove('hint-target','hint-solved','pair-hint'));
-    const oldBadge=$('.double-badge');if(oldBadge)oldBadge.remove();
+    $('.typing-hint-strip')?.remove();$('.stage4-hint-track')?.remove();$('.double-badge')?.remove();
+    $$('.stage3-letter-box').forEach(x=>x.classList.remove('hint-target','hint-solved','pair-hint'));
 
     if(task.stage<3){
       const audio=$('#audioBtn');audio?.classList.add('hint-pulse');
@@ -57,85 +81,66 @@
       return;
     }
 
-    const wrap=$('.type-wrap');
-    const input=task.stage===3?$('.stage3-real-input'):$('.full-input');
-    if(!wrap||!input)return;
+    const wrap=$('.type-wrap');if(!wrap)return;
     const span=task.span||weakSpanFor(word);
-    const typed=(input.value||'').toLowerCase();
-    let targetIndex=0,localIndex=0,complete=false;
+    let targetChar='',isDouble=false,targetVisual=null,focusAfter=null,editIndex=0;
 
     if(task.stage===3){
-      while(localIndex<span.correct.length&&typed[localIndex]===span.correct[localIndex])localIndex++;
-      if(localIndex>=span.correct.length)complete=true;else targetIndex=span.start+localIndex;
-    }else{
-      let i=0;while(i<word.word.length&&typed[i]===word.word[i])i++;
-      if(i>=word.word.length)complete=true;else targetIndex=i;
-    }
-
-    if(complete){
-      input.animate([{boxShadow:'0 0 0 0 rgba(120,189,144,0)'},{boxShadow:'0 0 0 7px rgba(120,189,144,.16)'},{boxShadow:'0 0 0 0 rgba(120,189,144,0)'}],{duration:700});
-      input.focus();return;
-    }
-
-    const targetChar=word.word[targetIndex]||'';
-    const isDouble=(word.word[targetIndex-1]===targetChar||word.word[targetIndex+1]===targetChar);
-    const candidatePool=[targetChar,...closestConfusion(targetChar).filter(c=>String(c).length===1)];
-    const fallback=['e','a','i','o','u','b','d','p','t','c','g','s','r','l','m','n','h','f','v','w','y'];
-    for(const c of fallback){if(!candidatePool.includes(c))candidatePool.push(c);if(candidatePool.length>=3)break}
-    const choices=shuffle([...new Set(candidatePool.filter(c=>String(c).length===1))]).slice(0,3);
-
-    let targetVisual=null;
-    if(task.stage===3){
-      targetVisual=$(`.stage3-letter-slot[data-local="${localIndex}"]`);
-      targetVisual?.classList.add('hint-target');
+      const boxes=$$('.stage3-letter-box',wrap);if(!boxes.length)return;
+      let local=0;
+      while(local<span.correct.length&&(boxes[local]?.value||'').toLowerCase()===span.correct[local])local++;
+      if(local>=span.correct.length){boxes[boxes.length-1]?.animate([{boxShadow:'0 0 0 0 rgba(120,189,144,0)'},{boxShadow:'0 0 0 7px rgba(120,189,144,.16)'},{boxShadow:'0 0 0 0 rgba(120,189,144,0)'}],{duration:700});return}
+      editIndex=local;targetChar=span.correct[local];targetVisual=boxes[local];
+      isDouble=(span.correct[local-1]===targetChar||span.correct[local+1]===targetChar||word.word[span.start+local-1]===targetChar||word.word[span.start+local+1]===targetChar);
+      targetVisual.classList.add('hint-target');
       if(isDouble){
-        const neighborLocal=word.word[targetIndex-1]===targetChar?localIndex-1:localIndex+1;
-        const neighbor=$(`.stage3-letter-slot[data-local="${neighborLocal}"]`);
-        neighbor?.classList.add('pair-hint');targetVisual?.classList.add('pair-hint');
-        const group=$('.stage3-input-group');
-        if(group){const badge=document.createElement('span');badge.className='double-badge';badge.textContent='×2';group.appendChild(badge)}
+        const neighbor=span.correct[local-1]===targetChar?boxes[local-1]:boxes[local+1];neighbor?.classList.add('pair-hint');targetVisual.classList.add('pair-hint');
+        const badge=document.createElement('span');badge.className='double-badge';badge.textContent='×2';wrap.querySelector('.stage3-input-group')?.appendChild(badge);
       }
+      focusAfter=()=>{
+        let idx=boxes.findIndex((b,i)=>(b.value||'').toLowerCase()!==span.correct[i]);if(idx<0)idx=boxes.length-1;
+        boxes[idx]?.focus();boxes[idx]?.select?.();
+      };
     }else{
+      const input=$('.full-input');if(!input)return;
+      const typed=(input.value||'').toLowerCase();let i=0;while(i<word.word.length&&typed[i]===word.word[i])i++;
+      if(i>=word.word.length){input.animate([{boxShadow:'0 0 0 0 rgba(120,189,144,0)'},{boxShadow:'0 0 0 7px rgba(120,189,144,.16)'},{boxShadow:'0 0 0 0 rgba(120,189,144,0)'}],{duration:700});return}
+      editIndex=i;targetChar=word.word[i];isDouble=(word.word[i-1]===targetChar||word.word[i+1]===targetChar);
       const track=document.createElement('div');track.className='stage4-hint-track';
-      for(let i=0;i<word.word.length;i++){
-        const slot=document.createElement('span');slot.className='stage4-hint-slot';slot.dataset.index=String(i);
-        if(i===targetIndex){slot.textContent='?';slot.classList.add('hint-target');targetVisual=slot}
-        else if(i<typed.length&&typed[i]===word.word[i]){slot.textContent=typed[i];slot.classList.add('known')}
+      for(let j=0;j<word.word.length;j++){
+        const slot=document.createElement('span');slot.className='stage4-hint-slot';slot.dataset.index=String(j);
+        if(j===i){slot.textContent='?';slot.classList.add('hint-target');targetVisual=slot}
+        else if(j<typed.length&&typed[j]===word.word[j]){slot.textContent=typed[j];slot.classList.add('known')}
         else{slot.innerHTML='&nbsp;';slot.classList.add('future')}
         track.appendChild(slot);
       }
-      if(isDouble){
-        const neighborIndex=word.word[targetIndex-1]===targetChar?targetIndex-1:targetIndex+1;
-        track.querySelector(`[data-index="${neighborIndex}"]`)?.classList.add('pair-hint');
-        targetVisual?.classList.add('pair-hint');
-        const badge=document.createElement('span');badge.className='double-badge';badge.textContent='×2';track.style.position='relative';track.appendChild(badge);
-      }
+      if(isDouble){const neighbor=i>0&&word.word[i-1]===targetChar?i-1:i+1;track.querySelector(`[data-index="${neighbor}"]`)?.classList.add('pair-hint');targetVisual?.classList.add('pair-hint');const badge=document.createElement('span');badge.className='double-badge';badge.textContent='×2';track.style.position='relative';track.appendChild(badge)}
       input.insertAdjacentElement('afterend',track);
+      focusAfter=()=>{input.focus();input.setSelectionRange?.(Math.min(input.value.length,editIndex+1),Math.min(input.value.length,editIndex+1))};
     }
+
+    const pool=[targetChar,...closestConfusion(targetChar).filter(c=>String(c).length===1)];
+    const fallback=['e','a','i','o','u','b','d','p','t','c','g','s','r','l','m','n','h','f','v','w','y'];
+    for(const c of fallback){if(!pool.includes(c))pool.push(c);if(pool.length>=3)break}
+    const choices=shuffle([...new Set(pool.filter(c=>String(c).length===1))]).slice(0,3);
 
     const strip=document.createElement('div');strip.className='typing-hint-strip';
     strip.innerHTML=`<button type="button" class="hint-icon-btn hint-replay" aria-label="Play slowly">🔊</button><div class="hint-letter-choices">${choices.map(c=>`<button type="button" class="hint-letter-choice" data-char="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div><button type="button" class="hint-icon-btn hint-close" aria-label="Close hint">×</button>`;
     const submit=$('.submit-answer',wrap);wrap.insertBefore(strip,submit||null);
 
-    const cleanup=()=>{
-      strip.remove();$('.stage4-hint-track')?.remove();$('.double-badge')?.remove();
-      $$('.stage3-letter-slot').forEach(x=>x.classList.remove('hint-target','hint-solved','pair-hint'));
-      input.focus();
-    };
+    const cleanup=()=>{strip.remove();$('.stage4-hint-track')?.remove();$('.double-badge')?.remove();$$('.stage3-letter-box').forEach(x=>x.classList.remove('hint-target','hint-solved','pair-hint'));focusAfter?.()};
     $('.hint-close',strip).onclick=cleanup;
-    $('.hint-replay',strip).onclick=()=>{playWordAudio(word,true);input.focus()};
-
+    $('.hint-replay',strip).onclick=()=>{playWordAudio(word,true);focusAfter?.()};
     $$('.hint-letter-choice',strip).forEach(btn=>btn.onclick=()=>{
       if(btn.dataset.char!==targetChar){btn.classList.add('wrong');setTimeout(()=>btn.classList.remove('wrong'),430);return}
       $$('.hint-letter-choice',strip).forEach(x=>x.disabled=true);btn.classList.add('correct');
-      const editIndex=task.stage===3?localIndex:targetIndex;
-      let value=input.value||'';
-      const before=value.slice(0,editIndex);const after=value.length>editIndex?value.slice(editIndex+1):'';
-      input.value=before+targetChar+after;input.dispatchEvent(new Event('input',{bubbles:true}));
-      if(task.stage===4&&targetVisual){targetVisual.textContent=targetChar;targetVisual.classList.remove('future');targetVisual.classList.add('hint-solved')}
-      if(task.stage===3){const solved=$(`.stage3-letter-slot[data-local="${localIndex}"]`);solved?.classList.add('hint-solved')}
-      const caret=Math.min(input.value.length,editIndex+1);input.focus();input.setSelectionRange?.(caret,caret);
-      setTimeout(cleanup,1050);
+      if(task.stage===3){
+        const box=$$('.stage3-letter-box',wrap)[editIndex];if(box){box.value=targetChar;box.classList.add('filled','hint-solved');box.dispatchEvent(new Event('input',{bubbles:true}))}
+      }else{
+        const input=$('.full-input');let value=input.value||'';input.value=value.slice(0,editIndex)+targetChar+(value.length>editIndex?value.slice(editIndex+1):'');input.dispatchEvent(new Event('input',{bubbles:true}));
+        if(targetVisual){targetVisual.textContent=targetChar;targetVisual.classList.add('hint-solved')}
+      }
+      setTimeout(cleanup,850);
     });
   }
 
