@@ -1,5 +1,5 @@
-/* v1.4 Stage 3 keyboard reliability: each missing-letter box is a real input. */
-.stage3-real-input{
+/* v1.5 Stage 3 keyboard reliability: every visible box is a real input. */
+.stage3-aggregate-input{
   position:absolute!important;
   left:-9999px!important;
   top:auto!important;
@@ -7,6 +7,8 @@
   height:1px!important;
   opacity:0!important;
   pointer-events:none!important;
+  border:0!important;
+  padding:0!important;
 }
 .stage3-letter-box{
   appearance:none;
