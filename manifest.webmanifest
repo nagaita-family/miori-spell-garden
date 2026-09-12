@@ -1,0 +1,12 @@
+{
+  "name": "Miori's Spell Garden",
+  "short_name": "Spell Garden",
+  "description": "A playful spelling practice garden for Miori.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffaf4",
+  "theme_color": "#f8f2ff",
+  "icons": [
+    {"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}

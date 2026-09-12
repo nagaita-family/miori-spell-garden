@@ -1,0 +1,92 @@
+tml='';
+    if(kind==='meaning') html=`<strong>Meaning</strong><br>${escapeHtml(word.meaningEn||'No English meaning saved yet.')}${word.meaningJa?`<br><span class="muted">${escapeHtml(word.meaningJa)}</span>`:''}`;
+    if(kind==='example') html=`<strong>Example</strong><br>${escapeHtml(word.example||'No example sentence saved yet.')}`;
+    if(kind==='picture') html=`<strong>Picture cue</strong><br><span style="font-size:30px">${escapeHtml(word.pictureEmoji||'✦')}</span> ${escapeHtml(word.pictureCue||'No picture cue saved yet.')}`;
+    panel.innerHTML=html;panel.classList.remove('hidden');
+  }
+
+  async function findHumanAudio(wordText) {
+    const word = String(wordText || '').trim().toLowerCase();
+    if (!word) return '';
+    try {
+      const q = encodeURIComponent(`${word} pronunciation`);
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${q}&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|mime&format=json&origin=*`;
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(), 4500);
+      const res = await fetch(url, {signal:controller.signal});
+      clearTimeout(timer);
+      if (!res.ok) return '';
+      const data = await res.json();
+      const pages = Object.values(data.query?.pages || {}).filter(p => p.imageinfo?.[0]?.url);
+      const scored = pages.map(p => {
+        const title=(p.title||'').toLowerCase();
+        const info=p.imageinfo[0];
+        let score=0;
+        if (title.includes(word)) score+=8;
+        if (/en[-_ ]?(us|uk|gb)|english/.test(title)) score+=5;
+        if (/pronunciation|pronounce/.test(title)) score+=3;
+        if (/\.(ogg|oga|mp3|wav)$/i.test(info.url||'')) score+=3;
+        if (/song|music|sentence|phrase/.test(title)) score-=6;
+        return {url:info.url,score,title};
+      }).sort((a,b)=>b.score-a.score);
+      return scored[0]?.score >= 8 ? scored[0].url : '';
+    } catch { return ''; }
+  }
+
+  async function resolveHumanAudioForWord(word, {announce=false}={}) {
+    if (!word || word.pronunciationUrl) return false;
+    const found = await findHumanAudio(word.word);
+    if (!found) { if (announce) toast('No clear human recording found. Device voice will be used.'); return false; }
+    word.pronunciationUrl = found;
+    word.pronunciationSource = 'Wikimedia Commons';
+    saveStateQuietly();
+    if (currentView === 'parent') renderLibrary();
+    if (announce) toast('Human pronunciation found on Wikimedia Commons.');
+    return true;
+  }
+
+  /* ---------------- Parent ---------------- */
+  function renderParent(){
+    $('#weekNameInput').value=state.weekName||'This Week';
+    renderThisWeek();renderLibrary();renderParentStats();populateVoiceSelect();
+  }
+
+  function renderThisWeek(){
+    const root=$('#thisWeekList');const words=currentWeekWords();$('#weekCountBadge').textContent=`${words.length} word${words.length===1?'':'s'}`;
+    if(!words.length){root.innerHTML='<div class="empty-mini">Import a Word Pack or add a word to start this week.</div>';return}
+    root.innerHTML='';words.forEach((w,i)=>{
+      const row=document.createElement('div');row.className='week-word';row.draggable=true;row.dataset.id=w.id;
+      const weak=weakSpanFor(w)?.correct||'';
+      row.innerHTML=`<span class="drag-handle">⋮⋮</span><div><strong>${escapeHtml(w.word)}</strong><small>${escapeHtml(w.phonicsFocus?`focus: ${w.phonicsFocus}`:(weak?`practice: ${weak}`:''))}</small></div><button class="tiny-btn audio-preview" title="Play">🔊</button><button class="tiny-btn remove-week" title="Remove from this week">×</button>`;
+      $('.audio-preview',row).onclick=()=>playWordAudio(w);$('.remove-week',row).onclick=()=>{state.thisWeek=state.thisWeek.filter(id=>id!==w.id);saveState();renderThisWeek();renderLibrary()};
+      row.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',w.id);row.style.opacity='.5'});row.addEventListener('dragend',()=>row.style.opacity='1');row.addEventListener('dragover',e=>e.preventDefault());row.addEventListener('drop',e=>{e.preventDefault();const from=e.dataTransfer.getData('text/plain');reorderWeek(from,w.id)});
+      root.appendChild(row);
+    });
+  }
+
+  function reorderWeek(fromId,toId){
+    if(fromId===toId)return;const a=state.thisWeek.indexOf(fromId),b=state.thisWeek.indexOf(toId);if(a<0||b<0)return;const [x]=state.thisWeek.splice(a,1);state.thisWeek.splice(b,0,x);saveState();renderThisWeek();
+  }
+
+  function renderLibrary(){
+    const root=$('#libraryList');const q=($('#librarySearch').value||'').trim().toLowerCase();const words=state.library.filter(w=>!q||w.word.includes(q)||(w.meaningEn||'').toLowerCase().includes(q));
+    if(!words.length){root.innerHTML='<div class="empty-mini">Your word library is empty.</div>';return}
+    root.innerHTML='';words.forEach(w=>{
+      const span=weakSpanFor(w);const inWeek=state.thisWeek.includes(w.id);const row=document.createElement('div');row.className='library-row';
+      const last=w.learning.lastPracticed?new Date(w.learning.lastPracticed).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—';
+      row.innerHTML=`<div class="library-word"><strong>${escapeHtml(w.word)}</strong><small>${inWeek?'● This Week':'Word Library'} · ${w.pronunciationUrl?'Human audio':'Device voice'}</small></div><div class="library-meaning">${escapeHtml(w.meaningEn||'No meaning saved')}</div><span class="weak-chip">Weak: ${escapeHtml(span?.correct||'—')}</span><div class="learning-mini">Stage 4 mistakes: ${w.learning.stage4Mistakes}<br>Miori wrote: ${escapeHtml(w.mioriSpelling||w.learning.lastWrong||'—')}<br>Hint: ${w.learning.hintUsed} · Last: ${last}</div><div class="row-actions"><button class="tiny-btn lib-audio">🔊</button><button class="tiny-btn lib-edit">✎</button></div>`;
+      $('.lib-audio',row).onclick=()=>playWordAudio(w);$('.lib-edit',row).onclick=()=>openWordModal(w.id);row.ondblclick=()=>openWordModal(w.id);root.appendChild(row);
+    });
+  }
+
+  function renderParentStats(){
+    $('#totalXpStat').textContent=state.garden.xp;$('#practiceStat').textContent=state.stats.totalAnswers;$('#itemsStat').textContent=unlockedRewards().length;
+  }
+
+  function openWordModal(id=null){
+    const w=id?state.library.find(x=>x.id===id):null;$('#editWordId').value=w?.id||'';$('#modalTitle').textContent=w?'Edit Word':'Add Word';
+    $('#wordInput').value=w?.word||'';$('#meaningEnInput').value=w?.meaningEn||'';$('#meaningJaInput').value=w?.meaningJa||'';$('#exampleInput').value=w?.example||'';$('#phonicsInput').value=w?.phonicsFocus||'';$('#pictureCueInput').value=w?.pictureCue||'';$('#mioriSpellingInput').value=w?.mioriSpelling||'';$('#pronunciationUrlInput').value=w?.pronunciationUrl||'';$('#thisWeekCheck').checked=w?state.thisWeek.includes(w.id):true;
+    $('#wordModal').classList.remove('hidden');setTimeout(()=>$('#wordInput').focus(),30);
+    let findAudio=$('#findHumanAudioBtn');
+    if(!findAudio){findAudio=document.createElement('button');findAudio.type='button';findAudio.id='findHumanAudioBtn';findAudio.className='secondary-btn';findAudio.textContent='Find Human Audio';findAudio.onclick=async()=>{const word=$('#wordInput').value.trim().toLowerCase();if(!word)return;findAudio.disabled=true;findAudio.textContent='Searching…';const fake={word,pronunciationUrl:''};const found=await findHumanAudio(word);findAudio.disabled=false;findAudio.textContent='Find Human Audio';if(found){$('#pronunciationUrlInput').value=found;toast('Human pronunciation found on Wikimedia Commons.')}else toast('No clear human recording found. Device voice will be used.')}}
+    if(!findAudio.isConnected) $('#

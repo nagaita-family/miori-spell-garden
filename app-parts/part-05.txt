@@ -1,0 +1,128 @@
+    }); area.appendChild(wrap);
+  }
+
+  function renderStage2(area,word,task){
+    const span=weakSpanFor(word); task.span=span;
+    const wrap=document.createElement('div'); wrap.style.width='100%';
+    const display=document.createElement('div'); display.className='gap-word';
+    display.innerHTML=`${escapeHtml(word.word.slice(0,span.start))}<span class="gap-blank">___</span>${escapeHtml(word.word.slice(span.end+1))}`;
+    const choices=document.createElement('div'); choices.className='choice-grid'; choices.style.marginTop='26px';
+    makeGapChoices(word,span).forEach(opt=>{const b=document.createElement('button');b.className='choice-btn';b.textContent=opt;b.onclick=()=>checkChoice(b,opt===span.correct,opt,word,task);choices.appendChild(b)});
+    wrap.append(display,choices);area.appendChild(wrap);
+  }
+
+  function renderStage3(area,word,task){
+    const span=weakSpanFor(word); task.span=span;
+    const wrap=document.createElement('div');wrap.className='type-wrap';
+    const display=document.createElement('div');display.className='gap-word';display.innerHTML=`${escapeHtml(word.word.slice(0,span.start))}<span class="gap-blank">${'_'.repeat(Math.max(2,span.correct.length))}</span>${escapeHtml(word.word.slice(span.end+1))}`;
+    const input=document.createElement('input');input.className='gap-input';input.autocomplete='off';input.spellcheck=false;input.maxLength=Math.max(6,span.correct.length+2);input.setAttribute('aria-label','Type missing letters');
+    const submit=document.createElement('button');submit.className='primary-btn submit-answer';submit.textContent='Check';
+    const go=()=>checkTyped(input,input.value.toLowerCase().trim()===span.correct,input.value.toLowerCase().trim(),word,task,span.correct);
+    submit.onclick=go; input.onkeydown=e=>{if(e.key==='Enter')go()};
+    wrap.append(display,input,submit);area.appendChild(wrap);setTimeout(()=>input.focus(),50);
+  }
+
+  function renderStage4(area,word,task){
+    const wrap=document.createElement('div');wrap.className='type-wrap';
+    const input=document.createElement('input');input.className='full-input';input.autocomplete='off';input.spellcheck=false;input.maxLength=word.word.length+4;input.placeholder='type the word';input.setAttribute('aria-label','Type full spelling');
+    const submit=document.createElement('button');submit.className='primary-btn submit-answer';submit.textContent='Check';
+    const go=()=>checkTyped(input,input.value.toLowerCase().trim()===word.word,input.value.toLowerCase().trim(),word,task,word.word);
+    submit.onclick=go; input.onkeydown=e=>{if(e.key==='Enter')go()};wrap.append(input,submit);area.appendChild(wrap);setTimeout(()=>input.focus(),50);
+  }
+
+  function checkChoice(button,isCorrect,attempt,word,task){
+    if (button.disabled) return;
+    task.tries++;
+    recordAttempt(word,attempt,isCorrect,task.tries===1,task.stage);
+    if (isCorrect){
+      $$('.choice-btn',$('#questionArea')).forEach(b=>b.disabled=true);button.classList.add('correct');
+      handleCorrect(task,word);
+    }else{
+      button.classList.add('wrong');button.disabled=true;handleWrong(task,word,attempt);
+    }
+  }
+
+  function checkTyped(input,isCorrect,attempt,word,task,expected){
+    if (!attempt) return;
+    task.tries++;
+    recordAttempt(word, task.stage===3 ? word.word.slice(0,task.span.start)+attempt+word.word.slice(task.span.end+1) : attempt, isCorrect, task.tries===1, task.stage);
+    if(isCorrect){input.disabled=true;handleCorrect(task,word)}
+    else{
+      input.classList.add('wrong'); setTimeout(()=>input.classList.remove('wrong'),350);
+      showLetterFeedback(attempt,expected); handleWrong(task,word,attempt); input.select();
+    }
+  }
+
+  function showLetterFeedback(attempt,expected){
+    const n=Math.max(attempt.length,expected.length);let html='<div class="letter-feedback">';
+    for(let i=0;i<n;i++){const a=attempt[i]||'·', e=expected[i]||'';html+=`<span class="${a===e?'ok':'bad'}">${escapeHtml(a)}</span>`}html+='</div>';
+    $('#feedback').innerHTML=html;
+  }
+
+  function handleCorrect(task,word){
+    const base=[8,10,12,18][task.stage-1];
+    const bonus=task.tries===1?4:0;
+    const gained=base+bonus;
+    session.xp+=gained;if(task.tries===1)session.firstTryWins++;
+    $('#sessionXp').textContent=`+${session.xp} XP`;
+    $('#feedback').className='feedback good';
+    if(!$('#feedback').querySelector('.letter-feedback')) $('#feedback').textContent=task.tries===1?'Perfect — you remembered it! ✦':'Yes! You fixed it. That counts. ♡';
+    playSfx('correct');
+    setTimeout(()=>{session.index++;renderTask()},780);
+  }
+
+  function handleWrong(task,word){
+    $('#feedback').classList.add('bad');
+    if(!$('#feedback').querySelector('.letter-feedback')) $('#feedback').textContent='Almost. Keep this stage and try again.';
+    playSfx('wrong');
+    if(task.tries>=2) setTimeout(()=>showHint(),300);
+  }
+
+  function finishSession(){
+    if(!session)return;
+    state.stats.sessions++;
+    state.garden.plantGrowth=(state.garden.plantGrowth||0)+1;
+    flyXp(session.xp);
+    addXp(session.xp);
+    saveState();
+    $('#playGame').classList.add('hidden');$('#sessionDone').classList.remove('hidden');
+    $('#stageFill').style.width='100%';
+    $('#doneSummary').textContent=`You earned ${session.xp} XP. ${session.firstTryWins} answers were right on the first try.`;
+    setTimeout(()=>{if(pendingLevelUps.length)showNextLevelUp()},500);
+  }
+
+  function showHint(){
+    const task=currentTask(),word=currentWord();if(!task||!word)return;
+    task.usedHint=true;word.learning.hintUsed++;saveStateQuietly();
+    playWordAudio(word,true);
+    let target;
+    if(task.stage===4){
+      const inp=$('.full-input');const typed=(inp?.value||'').toLowerCase();let idx=0;while(idx<word.word.length&&typed[idx]===word.word[idx])idx++;idx=Math.min(idx,word.word.length-1);target={index:idx,char:word.word[idx]};
+    }else{const span=task.span||weakSpanFor(word);target={index:span.start,char:word.word[span.start]}}
+    const choices=shuffle([target.char,...closestConfusion(target.char)]).slice(0,3);
+    const panel=$('#helpPanel');
+    panel.innerHTML=`<strong>Hint:</strong> listen slowly. Try this letter near the tricky spot.<div class="hint-choices">${choices.map(c=>`<button class="hint-choice" data-char="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>`;
+    panel.classList.remove('hidden');
+    $$('.hint-choice',panel).forEach(b=>b.onclick=()=>{
+      if(b.dataset.char!==target.char){b.classList.add('wrong');return}
+      b.classList.add('correct');insertHintCharacter(task,word,target.index,target.char);setTimeout(()=>panel.classList.add('hidden'),450);
+    });
+  }
+
+  function insertHintCharacter(task,word,index,char){
+    if(task.stage===3){
+      const input=$('.gap-input');const span=task.span;const local=Math.max(0,index-span.start);let arr=(input.value||'').split('');arr[local]=char;input.value=arr.join('');input.focus();
+    } else if(task.stage===4){
+      const input=$('.full-input');let arr=(input.value||'').split('');while(arr.length<index)arr.push('');arr[index]=char;input.value=arr.join('');input.focus();
+    }
+  }
+
+  function showPeek(){
+    const task=currentTask(),word=currentWord();if(!task||!word)return;
+    task.usedPeek=true;word.learning.peekUsed++;saveStateQuietly();
+    const panel=$('#helpPanel');panel.innerHTML=`<span class="peek-word">✨ ${escapeHtml(word.word)} ✨</span>`;panel.classList.remove('hidden');
+    setTimeout(()=>{panel.classList.add('hidden');panel.innerHTML=''},2000);
+  }
+
+  function showInfo(kind){
+    const word=currentWord();if(!word)return;const panel=$('#helpPanel');let h

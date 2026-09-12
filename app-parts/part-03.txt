@@ -1,0 +1,181 @@
+class="eye r"></i><i class="cheek l"></i><i class="cheek r"></i><i class="nose"></i><i class="mouth"></i></b>';
+      } else {
+        el.innerHTML = `<span class="art">${reward.emoji}</span><span class="object-label">${escapeHtml(reward.label)}</span>`;
+      }
+      makeDraggable(el);
+      if (reward.type === 'rabbit') {
+        el.addEventListener('click', e => {
+          if (el.dataset.wasDragged === '1') return;
+          cycleRabbitMood(el);
+        });
+      }
+      root.appendChild(el);
+    }
+    saveStateQuietly();
+  }
+
+  function saveStateQuietly(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+  function cycleRabbitMood(el) {
+    const moods = ['idle','happy','eating','sleeping','surprised'];
+    const next = moods[(moods.indexOf(el.dataset.mood)+1) % moods.length];
+    el.dataset.mood = next;
+    state.garden.objects.bunny.mood = next;
+    saveStateQuietly();
+    const labels = {idle:'Mochi is looking around.',happy:'Mochi is happy!',eating:'Mochi found a snack.',sleeping:'Shhh… Mochi is sleepy.',surprised:'Oh! What was that?'};
+    toast(labels[next]);
+  }
+
+  function makeDraggable(el) {
+    let dragging = false, moved = false, offsetX=0, offsetY=0;
+    el.addEventListener('pointerdown', e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      const scene = $('#gardenScene').getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      dragging = true; moved = false;
+      offsetX = e.clientX - (r.left + r.width/2);
+      offsetY = e.clientY - (r.top + r.height/2);
+      el.setPointerCapture?.(e.pointerId);
+      el.classList.add('dragging');
+      e.preventDefault();
+      const move = ev => {
+        if (!dragging) return;
+        const x = ((ev.clientX - scene.left - offsetX) / scene.width) * 100;
+        const y = ((ev.clientY - scene.top - offsetY) / scene.height) * 100;
+        const cx = Math.max(3, Math.min(97, x));
+        const cy = Math.max(10, Math.min(91, y));
+        if (Math.abs(ev.movementX || 0)+Math.abs(ev.movementY || 0)>1) moved = true;
+        el.style.left = `${cx}%`; el.style.top = `${cy}%`;
+        state.garden.objects[el.dataset.id] = { ...(state.garden.objects[el.dataset.id] || {}), x:cx, y:cy, mood:el.dataset.mood || 'idle' };
+      };
+      const up = () => {
+        dragging = false; el.classList.remove('dragging');
+        el.dataset.wasDragged = moved ? '1' : '0';
+        saveStateQuietly();
+        setTimeout(()=> el.dataset.wasDragged='0', 60);
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    });
+  }
+
+  /* ---------------- Audio ---------------- */
+  function loadVoices() {
+    voices = speechSynthesis?.getVoices?.() || [];
+    populateVoiceSelect();
+  }
+
+  function englishVoices() {
+    return voices.filter(v => /^en([-_]|$)/i.test(v.lang)).sort((a,b) => {
+      const score = v => (/(Samantha|Ava|Google US English|Microsoft.*(Jenny|Aria|Emma)|English United States)/i.test(v.name) ? 0 : 1);
+      return score(a)-score(b) || a.name.localeCompare(b.name);
+    });
+  }
+
+  function chosenVoice() {
+    const list = englishVoices();
+    return list.find(v => v.voiceURI === state.preferredVoice) || list[0] || voices[0];
+  }
+
+  function speak(text, {slow=false}={}) {
+    if (!text || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = chosenVoice();
+    if (v) u.voice = v;
+    u.lang = v?.lang || 'en-US';
+    u.rate = slow ? .62 : .88;
+    u.pitch = 1.03;
+    const btn = $('#audioBtn');
+    if (btn) {
+      btn.classList.add('playing');
+      u.onend = () => btn.classList.remove('playing');
+      u.onerror = () => btn.classList.remove('playing');
+    }
+    speechSynthesis.speak(u);
+  }
+
+  async function playWordAudio(word, slow=false) {
+    if (!slow && word.pronunciationUrl) {
+      try {
+        const audio = new Audio(word.pronunciationUrl);
+        audio.playbackRate = 1;
+        const btn = $('#audioBtn'); btn?.classList.add('playing');
+        audio.onended = () => btn?.classList.remove('playing');
+        await audio.play();
+        return;
+      } catch (e) { console.warn('Human audio failed, using device voice', e); }
+    }
+    speak(word.word, {slow});
+  }
+
+  function populateVoiceSelect() {
+    const select = $('#voiceSelect');
+    if (!select) return;
+    const list = englishVoices();
+    select.innerHTML = list.length ? '' : '<option>No English voices found</option>';
+    for (const v of list) {
+      const opt = document.createElement('option');
+      opt.value = v.voiceURI; opt.textContent = `${v.name} — ${v.lang}`;
+      select.appendChild(opt);
+    }
+    if (state.preferredVoice && list.some(v=>v.voiceURI===state.preferredVoice)) select.value = state.preferredVoice;
+    else if (list[0]) { select.value = list[0].voiceURI; if (!state.preferredVoice) state.preferredVoice = list[0].voiceURI; }
+  }
+
+  function playSfx(type) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = ctx.currentTime;
+      const notes = type === 'level' ? [523.25,659.25,783.99,1046.5] : type === 'correct' ? [523.25,659.25] : [220,196];
+      notes.forEach((freq,i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type === 'wrong' ? 'triangle' : 'sine'; o.frequency.value=freq;
+        g.gain.setValueAtTime(.0001,now+i*.09); g.gain.exponentialRampToValueAtTime(.07,now+i*.09+.015); g.gain.exponentialRampToValueAtTime(.0001,now+i*.09+.22);
+        o.connect(g); g.connect(ctx.destination); o.start(now+i*.09); o.stop(now+i*.09+.24);
+      });
+    } catch {}
+  }
+
+  /* ---------------- Adaptive learning ---------------- */
+  function currentWeekWords() { return state.thisWeek.map(id => state.library.find(w=>w.id===id)).filter(Boolean); }
+
+  function mismatchSpan(correct, attempt) {
+    correct = (correct||'').toLowerCase(); attempt=(attempt||'').toLowerCase();
+    if (!attempt || correct===attempt) return null;
+    let start=0;
+    while (start<correct.length && start<attempt.length && correct[start]===attempt[start]) start++;
+    let cEnd=correct.length-1, aEnd=attempt.length-1;
+    while (cEnd>=start && aEnd>=start && correct[cEnd]===attempt[aEnd]) {cEnd--;aEnd--;}
+    return { start, end: Math.max(start,cEnd), correct: correct.slice(start,cEnd+1), wrong: attempt.slice(start,aEnd+1) };
+  }
+
+  function contextualizeSpan(wordText, span, phonicsFocus='') {
+    if (!span) return span;
+    const word = String(wordText || '').toLowerCase();
+    const focus = String(phonicsFocus || '').toLowerCase();
+    if (focus) {
+      let at = word.indexOf(focus);
+      while (at >= 0) {
+        const end = at + focus.length - 1;
+        if (at <= span.end + 1 && end >= span.start - 1) return {start:at,end,correct:focus,wrong:span.wrong||''};
+        at = word.indexOf(focus, at + 1);
+      }
+    }
+    const chunks = ['tion','sion','tch','igh','ble','tle','dle','gle','ple','cle','ee','ea','ie','ei','ai','ay','oa','ow','ou','ck','ph','wh','ch','le'];
+    for (const chunk of chunks) {
+      let at = word.indexOf(chunk);
+      while (at >= 0) {
+        const end = at + chunk.length - 1;
+        if (at <= span.start && end >= span.end) return {start:at,end,correct:chunk,wrong:span.wrong||''};
+        at = word.indexOf(chunk, at + 1);
+      }
+    }
+    return span;
+  }
+
+  function weakSpanFor(word) {
+    const initial = mismatchSpan(word.word, word.mioriSpelling);
+    if 

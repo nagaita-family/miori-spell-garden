@@ -1,0 +1,156 @@
+ (initial && (word.learning.mioriWeakness ?? 3) > .25) return contextualizeSpan(word.word, initial, word.phonicsFocus);
+    const entries = Object.entries(word.learning.weakSpans || {}).sort((a,b)=>b[1]-a[1]);
+    if (entries[0]) {
+      const [key] = entries[0];
+      const [start,end] = key.split('-').map(Number);
+      if (Number.isFinite(start) && Number.isFinite(end)) return contextualizeSpan(word.word, {start,end,correct:word.word.slice(start,end+1),wrong:''}, word.phonicsFocus);
+    }
+    const focus = String(word.phonicsFocus || '').toLowerCase();
+    if (focus) {
+      const idx = word.word.indexOf(focus);
+      if (idx >= 0) return {start:idx,end:idx+focus.length-1,correct:focus,wrong:''};
+    }
+    const len = word.word.length;
+    if (len<=4) return {start:1,end:Math.max(1,len-2),correct:word.word.slice(1,Math.max(2,len-1)),wrong:''};
+    const size = len>=8 ? 3 : 2;
+    const start = Math.max(1, Math.floor((len-size)/2));
+    return {start,end:start+size-1,correct:word.word.slice(start,start+size),wrong:''};
+  }
+
+  function wordPriority(w) {
+    const l = w.learning;
+    const weak = Object.values(l.weakSpans||{}).reduce((a,b)=>a+b,0);
+    const firstRate = l.attempts ? l.firstTryCorrect/l.attempts : 0;
+    const historical = mismatchSpan(w.word,w.mioriSpelling) ? Math.max(0, w.learning.mioriWeakness ?? 3) * 1.7 : 0;
+    const recency = !l.lastPracticed ? 4 : Math.min(3, (Date.now()-new Date(l.lastPracticed).getTime())/(1000*60*60*24*3));
+    return historical + weak*1.8 + (1-firstRate)*3 + recency + Math.random()*1.5;
+  }
+
+  function selectSessionWords() {
+    return currentWeekWords().slice().sort((a,b)=>wordPriority(b)-wordPriority(a)).slice(0, Math.min(2,currentWeekWords().length));
+  }
+
+  function recordAttempt(word, attempt, correct, firstTry, stage) {
+    const l = word.learning;
+    l.attempts++;
+    state.stats.totalAnswers++;
+    l.lastPracticed = new Date().toISOString();
+    if (correct) {
+      l.correct++;
+      if (firstTry) l.firstTryCorrect++;
+      decayWeakness(word);
+    } else {
+      l.lastWrong = attempt;
+      if (stage===4) l.stage4Mistakes++;
+      const span = mismatchSpan(word.word, attempt);
+      if (span) {
+        const key = `${span.start}-${span.end}`;
+        l.weakSpans[key] = Math.min(9,(l.weakSpans[key]||0)+1);
+      }
+    }
+    saveStateQuietly();
+  }
+
+  function decayWeakness(word) {
+    const l=word.learning;
+    l.mioriWeakness = Math.max(0, (l.mioriWeakness || 0) - .25);
+    for (const key of Object.keys(l.weakSpans||{})) {
+      l.weakSpans[key] = Math.max(0,l.weakSpans[key]-.25);
+      if (l.weakSpans[key] <= 0) delete l.weakSpans[key];
+    }
+  }
+
+  function closestConfusion(correct) {
+    const lower = correct.toLowerCase();
+    const group = COMMON_CONFUSIONS.find(g => g.includes(lower));
+    if (group) return group.filter(x=>x!==lower);
+    if (lower.length===1) {
+      const maps = {b:['p','d'],p:['b','d'],d:['b','t'],c:['k','s'],k:['c','ck'],i:['e','y'],e:['i','a'],a:['e','o'],o:['u','a'],u:['o','a'],g:['j','k'],j:['g','ch'],f:['ph','v'],v:['f','b'],s:['c','z'],z:['s','x']};
+      return maps[lower] || ['e','a'];
+    }
+    const vowelSwap = lower.replace(/ee/g,'ea').replace(/ie/g,'ei');
+    const alt = vowelSwap!==lower ? vowelSwap : lower.split('').reverse().join('');
+    return [alt, lower.slice(0,-1)+(lower.at(-1)==='e'?'a':'e')];
+  }
+
+  function makeGapChoices(word, span) {
+    const correct = span.correct;
+    let out = [correct];
+    const initial = mismatchSpan(word.word, word.mioriSpelling);
+    if (initial && initial.start===span.start && initial.wrong) out.push(initial.wrong);
+    const last = mismatchSpan(word.word, word.learning.lastWrong || '');
+    if (last && last.start===span.start && last.wrong) out.push(last.wrong);
+    out.push(...closestConfusion(correct));
+    out = [...new Set(out.filter(Boolean))];
+    while (out.length < 3) out.push(correct + (out.length===1?'e':'a'));
+    return shuffle(out.slice(0,3));
+  }
+
+  function makeWholeDistractors(word) {
+    const correct = word.word;
+    const span = weakSpanFor(word);
+    const options=[correct];
+    if (word.mioriSpelling && word.mioriSpelling.toLowerCase()!==correct) options.push(word.mioriSpelling.toLowerCase());
+    if (word.learning.lastWrong && word.learning.lastWrong.toLowerCase()!==correct) options.push(word.learning.lastWrong.toLowerCase());
+    for (const alt of closestConfusion(span.correct)) {
+      options.push(correct.slice(0,span.start)+alt+correct.slice(span.end+1));
+    }
+    if (options.length<3 && correct.length>3) options.push(correct.slice(0,-2)+correct.at(-1)+correct.at(-2));
+    while (options.length<3) options.push(correct+'e');
+    return shuffle([...new Set(options)].slice(0,3));
+  }
+
+  function shuffle(arr) { return arr.map(v=>({v,r:Math.random()})).sort((a,b)=>a.r-b.r).map(x=>x.v); }
+
+  /* ---------------- Play ---------------- */
+  function renderPlayHome() {
+    session = null;
+    $('#playGame').classList.add('hidden'); $('#sessionDone').classList.add('hidden');
+    const words=currentWeekWords();
+    const empty=words.length===0;
+    $('#playEmpty').classList.toggle('hidden',!empty);
+    $('#playHome').classList.toggle('hidden',empty);
+    $('#weekLabel').textContent=state.weekName || 'This Week';
+    $('#wordCountLabel').textContent=`${words.length} word${words.length===1?'':'s'}`;
+  }
+
+  function startSession() {
+    const selected=selectSessionWords();
+    if (!selected.length) return renderPlayHome();
+    const tasks=[];
+    selected.forEach(w => STAGES.forEach(stage => tasks.push({wordId:w.id,stage:stage.id,tries:0,usedHint:false,usedPeek:false})));
+    session={tasks,index:0,xp:0,firstTryWins:0};
+    $('#playHome').classList.add('hidden'); $('#playEmpty').classList.add('hidden'); $('#sessionDone').classList.add('hidden'); $('#playGame').classList.remove('hidden');
+    renderTask();
+  }
+
+  function currentTask(){ return session?.tasks[session.index]; }
+  function currentWord(){ return state.library.find(w=>w.id===currentTask()?.wordId); }
+
+  function renderTask() {
+    const task=currentTask(), word=currentWord();
+    if (!task || !word) return finishSession();
+    const stage=STAGES[task.stage-1];
+    $('#stageName').textContent=`Stage ${stage.id} · ${stage.name}`;
+    $('#roundProgress').textContent=`${session.index+1} / ${session.tasks.length}`;
+    $('#stageFill').style.width=`${(session.index/session.tasks.length)*100}%`;
+    $('#taskPrompt').textContent=stage.prompt; $('#taskSubprompt').textContent=stage.sub;
+    const visual=$('#wordVisualCue');
+    if(visual){visual.innerHTML=`<span class="picture-emoji">${escapeHtml(word.pictureEmoji||'✦')}</span><span>${escapeHtml(word.pictureCue||'Picture this word in your mind.')}</span>`;}
+    $('#feedback').className='feedback'; $('#feedback').textContent='';
+    $('#helpPanel').classList.add('hidden'); $('#helpPanel').innerHTML='';
+    $('#sessionXp').textContent=`+${session.xp} XP`;
+    const area=$('#questionArea'); area.innerHTML='';
+    if (task.stage===1) renderStage1(area,word,task);
+    if (task.stage===2) renderStage2(area,word,task);
+    if (task.stage===3) renderStage3(area,word,task);
+    if (task.stage===4) renderStage4(area,word,task);
+    setTimeout(()=>playWordAudio(word),160);
+  }
+
+  function renderStage1(area,word,task){
+    const wrap=document.createElement('div'); wrap.className='choice-grid';
+    makeWholeDistractors(word).forEach(opt=>{
+      const b=document.createElement('button'); b.className='choice-btn'; b.textContent=opt;
+      b.onclick=()=>checkChoice(b,opt===word.word,opt,word,task);
+      wrap.appendChild(b);

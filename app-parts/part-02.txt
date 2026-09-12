@@ -1,0 +1,196 @@
+ = defaultState();
+    const s = { ...base, ...input };
+    s.library = Array.isArray(input.library) ? input.library.map(normalizeWord) : [];
+    s.thisWeek = Array.isArray(input.thisWeek) ? input.thisWeek.filter(id => s.library.some(w => w.id === id)) : [];
+    s.garden = { ...base.garden, ...(input.garden || {}) };
+    s.garden.objects = { ...base.garden.objects, ...((input.garden || {}).objects || {}) };
+    s.stats = { ...base.stats, ...(input.stats || {}) };
+    const calculated = calculateLevel(s.garden.xp);
+    s.garden.level = calculated.level;
+    return s;
+  }
+
+  function normalizeWord(w) {
+    const word = String(w.word || '').trim().toLowerCase();
+    const mioriSpelling = String(w.mioriSpelling || '').trim().toLowerCase();
+    const learning = {
+      attempts: 0,
+      correct: 0,
+      firstTryCorrect: 0,
+      hintUsed: 0,
+      peekUsed: 0,
+      stage4Mistakes: 0,
+      weakSpans: {},
+      lastWrong: '',
+      lastPracticed: '',
+      ...(w.learning || {})
+    };
+    if (learning.mioriWeakness == null) learning.mioriWeakness = mioriSpelling && mioriSpelling !== word ? 3 : 0;
+    return {
+      id: w.id || uid(),
+      word,
+      meaningEn: w.meaningEn || w.englishMeaning || '',
+      meaningJa: w.meaningJa || w.japaneseMeaning || '',
+      example: w.example || w.exampleSentence || '',
+      phonicsFocus: w.phonicsFocus || '',
+      pictureCue: w.pictureCue || '',
+      pictureEmoji: w.pictureEmoji || '✦',
+      mioriSpelling,
+      pronunciationUrl: w.pronunciationUrl || w.audioUrl || '',
+      pronunciationSource: w.pronunciationSource || (w.pronunciationUrl ? 'word-pack' : 'device'),
+      learning
+    };
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderTopbar();
+    renderParentStats();
+  }
+
+  function calculateLevel(totalXp) {
+    let level = 1;
+    let remaining = Math.max(0, totalXp);
+    let need = xpNeeded(level);
+    while (remaining >= need) {
+      remaining -= need;
+      level++;
+      need = xpNeeded(level);
+    }
+    return { level, current: remaining, need, pct: Math.min(100, remaining / need * 100) };
+  }
+
+  function xpNeeded(level) { return 100 + (level - 1) * 25; }
+
+  function addXp(amount) {
+    const before = calculateLevel(state.garden.xp);
+    state.garden.xp += amount;
+    const after = calculateLevel(state.garden.xp);
+    state.garden.level = after.level;
+    if (after.level > before.level) {
+      for (let lvl = before.level + 1; lvl <= after.level; lvl++) pendingLevelUps.push(lvl);
+    }
+    saveState();
+    animateXp();
+  }
+
+  function animateXp() {
+    renderTopbar();
+    $('#xpFill')?.animate([{filter:'brightness(1)'},{filter:'brightness(1.25)'},{filter:'brightness(1)'}], {duration:700});
+  }
+
+  function flyXp(amount) {
+    const from = $('#sessionXp')?.getBoundingClientRect();
+    const to = $('.level-wrap')?.getBoundingClientRect();
+    if (!from || !to) return;
+    const el = document.createElement('div');
+    el.className = 'xp-fly';
+    el.textContent = `+${amount} XP ✦`;
+    el.style.left = `${from.left + from.width/2}px`;
+    el.style.top = `${from.top + from.height/2}px`;
+    document.body.appendChild(el);
+    const dx = (to.left + to.width/2) - (from.left + from.width/2);
+    const dy = (to.top + to.height/2) - (from.top + from.height/2);
+    el.animate([
+      {transform:'translate(-50%,-50%) scale(.8)',opacity:0},
+      {transform:'translate(-50%,-70%) scale(1.15)',opacity:1,offset:.18},
+      {transform:`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.72)`,opacity:0}
+    ], {duration:1050,easing:'cubic-bezier(.2,.75,.2,1)'}).onfinish=()=>el.remove();
+  }
+
+  function showNextLevelUp() {
+    if (!pendingLevelUps.length) return;
+    const level = pendingLevelUps.shift();
+    const reward = REWARDS.find(r => r.level === level);
+    if (reward && !state.garden.objects[reward.id]) {
+      const pos = defaultObjectPosition(reward.id);
+      state.garden.objects[reward.id] = { ...pos, mood: 'idle' };
+      saveState();
+    }
+    $('#levelUpTitle').textContent = `Level ${level}`;
+    $('#rewardReveal').textContent = reward?.emoji || '✨';
+    $('#rewardText').textContent = reward ? `${reward.label} joined your garden!` : 'Your garden feels a little more magical.';
+    makeConfetti();
+    $('#levelUpOverlay').classList.remove('hidden');
+    playSfx('level');
+  }
+
+  function makeConfetti() {
+    const box = $('#confetti');
+    box.innerHTML = '';
+    const colors = ['#ff9fbd','#a991df','#8ed1aa','#ffd46b','#91cfee'];
+    for (let i=0;i<55;i++) {
+      const el = document.createElement('i');
+      el.style.left = `${Math.random()*100}%`;
+      el.style.background = colors[i % colors.length];
+      el.style.animationDelay = `${Math.random()*.8}s`;
+      el.style.animationDuration = `${2 + Math.random()*1.5}s`;
+      box.appendChild(el);
+    }
+  }
+
+  function renderTopbar() {
+    const l = calculateLevel(state.garden.xp);
+    $('#levelLabel').textContent = `Level ${l.level}`;
+    $('#xpLabel').textContent = `${l.current} / ${l.need} XP`;
+    requestAnimationFrame(() => $('#xpFill').style.width = `${l.pct}%`);
+  }
+
+  function navTo(view) {
+    currentView = view;
+    $$('.view').forEach(v => v.classList.remove('active-view'));
+    $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.nav === view));
+    $(`#${view}View`).classList.add('active-view');
+    if (view === 'garden') renderGarden();
+    if (view === 'play') renderPlayHome();
+    if (view === 'parent') renderParent();
+  }
+
+  /* ---------------- Garden ---------------- */
+  function renderGarden() {
+    renderPlants();
+    renderGardenObjects();
+  }
+
+  function renderPlants() {
+    const total = state.garden.plantGrowth || 0;
+    const slots = [$('#plantSlotsA'), $('#plantSlotsB')];
+    slots.forEach((root, plotIndex) => {
+      root.innerHTML = '';
+      for (let i=0;i<3;i++) {
+        const absoluteIndex = plotIndex*3+i;
+        const steps = Math.max(0, total - absoluteIndex*2);
+        const stage = steps <= 0 ? 'seed' : steps === 1 ? 'sprout' : steps === 2 ? 'little' : 'bloomed';
+        const p = document.createElement('div');
+        p.className = `plant ${stage}`;
+        p.innerHTML = '<i class="stem"></i><i class="leaf"></i><i class="leaf r"></i><b class="bloom"><i></i><i></i><i></i><i></i><i></i></b>';
+        root.appendChild(p);
+      }
+    });
+  }
+
+  function unlockedRewards() { return REWARDS.filter(r => r.level <= state.garden.level); }
+
+  function defaultObjectPosition(id) {
+    const positions = {
+      bunny:{x:56,y:59}, lantern:{x:73,y:43}, bench:{x:10,y:64}, birdhouse:{x:79,y:63},
+      duck:{x:81,y:78}, mushroom:{x:21,y:52}, cat:{x:63,y:73}, mailbox:{x:89,y:52}, treehouse:{x:5,y:31}, fawn:{x:36,y:58}
+    };
+    return positions[id] || {x:50,y:55};
+  }
+
+  function renderGardenObjects() {
+    const root = $('#gardenObjects');
+    root.innerHTML = '';
+    for (const reward of unlockedRewards()) {
+      const data = state.garden.objects[reward.id] || defaultObjectPosition(reward.id);
+      if (!state.garden.objects[reward.id]) state.garden.objects[reward.id] = {...data, mood:'idle'};
+      const el = document.createElement('div');
+      el.className = `garden-object ${reward.type === 'rabbit' ? 'rabbit' : 'treasure'}`;
+      el.dataset.id = reward.id;
+      el.style.left = `${data.x}%`;
+      el.style.top = `${data.y}%`;
+      el.style.transform = 'translate(-50%,-50%)';
+      if (reward.type === 'rabbit') {
+        el.dataset.mood = data.mood || 'idle';
+        el.innerHTML = '<i class="ear"></i><i class="ear r"></i><b class="body"><i class="eye l"></i><i 

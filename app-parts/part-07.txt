@@ -1,0 +1,75 @@
+pronunciationUrlInput').parentElement.after(findAudio);
+    if(w){
+      let reset=$('#resetWordLearningBtn');if(!reset){reset=document.createElement('button');reset.type='button';reset.id='resetWordLearningBtn';reset.className='danger-link';reset.textContent='Reset Learning for This Word';reset.onclick=()=>resetWordLearning($('#editWordId').value);$('.modal-actions').prepend(reset)}reset.classList.remove('hidden');
+      let del=$('#deleteWordBtn');if(!del){del=document.createElement('button');del.type='button';del.id='deleteWordBtn';del.className='danger-link';del.textContent='Delete Word';del.onclick=()=>deleteWord($('#editWordId').value);$('.modal-actions').prepend(del)}del.classList.remove('hidden');
+    }else {$('#resetWordLearningBtn')?.classList.add('hidden');$('#deleteWordBtn')?.classList.add('hidden')}
+  }
+
+  function closeWordModal(){$('#wordModal').classList.add('hidden')}
+
+  function saveWordFromForm(e){
+    e.preventDefault();const id=$('#editWordId').value;const wordText=$('#wordInput').value.trim().toLowerCase();if(!wordText)return;
+    let w=id?state.library.find(x=>x.id===id):state.library.find(x=>x.word===wordText);
+    const isNew=!w;if(!w)w=normalizeWord({id:uid(),word:wordText});
+    const previousMiori=w.mioriSpelling||'';
+    w.word=wordText;w.meaningEn=$('#meaningEnInput').value.trim();w.meaningJa=$('#meaningJaInput').value.trim();w.example=$('#exampleInput').value.trim();w.phonicsFocus=$('#phonicsInput').value.trim();w.pictureCue=$('#pictureCueInput').value.trim();w.mioriSpelling=$('#mioriSpellingInput').value.trim().toLowerCase();w.pronunciationUrl=$('#pronunciationUrlInput').value.trim();w.pronunciationSource=w.pronunciationUrl?'manual':'device';
+    if (w.mioriSpelling!==previousMiori) w.learning.mioriWeakness = w.mioriSpelling && w.mioriSpelling!==w.word ? 3 : 0;
+    if(isNew)state.library.push(w);const wantWeek=$('#thisWeekCheck').checked;if(wantWeek&&!state.thisWeek.includes(w.id))state.thisWeek.push(w.id);if(!wantWeek)state.thisWeek=state.thisWeek.filter(x=>x!==w.id);saveState();closeWordModal();renderParent();toast(isNew?'Word added.':'Word saved.');
+  }
+
+  function resetWordLearning(id){
+    const w=state.library.find(x=>x.id===id);if(!w)return;if(!confirm(`Reset learning data for “${w.word}” only?`))return;w.learning=normalizeWord({word:w.word}).learning;saveState();closeWordModal();renderParent();toast('Learning data reset for this word.');
+  }
+
+  function deleteWord(id){
+    const w=state.library.find(x=>x.id===id);if(!w)return;if(!confirm(`Delete “${w.word}” from the Word Library?`))return;
+    state.library=state.library.filter(x=>x.id!==id);state.thisWeek=state.thisWeek.filter(x=>x!==id);saveState();closeWordModal();renderParent();toast('Word deleted.');
+  }
+
+  async function importWordPack(file){
+    if(!file)return;try{
+      const text=await file.text();const data=JSON.parse(text);const words=Array.isArray(data)?data:(Array.isArray(data.words)?data.words:[]);if(!words.length)throw new Error('No words found');
+      if(data.weekName||data.title)state.weekName=data.weekName||data.title;
+      const newWeek=[];
+      for(const raw of words){if(!raw.word)continue;const key=String(raw.word).trim().toLowerCase();let existing=state.library.find(w=>w.word===key);if(existing){
+          const learning=existing.learning;const id=existing.id;existing={...existing,...normalizeWord({...raw,id}),learning};Object.assign(state.library.find(w=>w.id===id),existing);newWeek.push(id);
+        }else{const nw=normalizeWord(raw);state.library.push(nw);newWeek.push(nw.id)}}
+      state.thisWeek=[...new Set(newWeek)];saveState();renderParent();toast(`Imported ${newWeek.length} words.`);
+      const unresolved=newWeek.map(id=>state.library.find(w=>w.id===id)).filter(w=>w&&!w.pronunciationUrl);
+      (async()=>{for(const w of unresolved) await resolveHumanAudioForWord(w); saveStateQuietly(); if(currentView==='parent')renderLibrary();})().catch(()=>{});
+    }catch(e){console.error(e);toast('Could not import this Word Pack. Check the JSON format.',true)}finally{$('#importInput').value=''}
+  }
+
+  function exportBackup(){
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`spell-garden-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  function resetGardenProgress(){
+    if(!confirm('Reset XP, garden growth, positions, and unlocked items? Word learning data will stay.'))return;state.garden=defaultState().garden;state.stats.sessions=0;saveState();renderParent();toast('Garden progress reset.');
+  }
+
+  /* ---------------- UX helpers ---------------- */
+  function toast(msg,error=false){
+    const el=$('#toast');el.textContent=msg;el.style.background=error?'#a64e55':'#4c4351';el.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.add('hidden'),2400);
+  }
+
+  function attachEvents(){
+    $$('[data-nav]').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.nav)));
+    $('#gardenPlayBtn').onclick=()=>navTo('play');$('#startSessionBtn').onclick=startSession;$('#playAgainBtn').onclick=startSession;$('#exitPlayBtn').onclick=()=>navTo('garden');
+    $('#audioBtn').onclick=()=>{const w=currentWord();if(w)playWordAudio(w)};$('#hintBtn').onclick=showHint;$('#peekBtn').onclick=showPeek;$('#meaningBtn').onclick=()=>showInfo('meaning');$('#exampleBtn').onclick=()=>showInfo('example');$('#pictureBtn').onclick=()=>showInfo('picture');
+    $('#addWordBtn').onclick=()=>openWordModal();$('#closeModalBtn').onclick=closeWordModal;$('#cancelModalBtn').onclick=closeWordModal;$('#wordForm').onsubmit=saveWordFromForm;$('#wordModal').addEventListener('click',e=>{if(e.target===$('#wordModal'))closeWordModal()});
+    $('#importInput').onchange=e=>importWordPack(e.target.files[0]);$('#exportBtn').onclick=exportBackup;$('#weekNameInput').onchange=e=>{state.weekName=e.target.value.trim()||'This Week';saveState()};$('#librarySearch').oninput=renderLibrary;
+    $('#voiceSelect').onchange=e=>{state.preferredVoice=e.target.value;saveState()};$('#testVoiceBtn').onclick=()=>speak('Hello Miori. Let’s practice spelling together.');$('#resetGardenBtn').onclick=resetGardenProgress;
+    $('#closeLevelUpBtn').onclick=()=>{$('#levelUpOverlay').classList.add('hidden');renderGarden();if(pendingLevelUps.length)setTimeout(showNextLevelUp,250)};
+    window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#wordModal').classList.contains('hidden'))closeWordModal();else if(currentView==='play'&&session)navTo('garden')}});
+  }
+
+  function init(){
+    attachEvents();renderTopbar();renderGarden();loadVoices();if('speechSynthesis' in window)speechSynthesis.onvoiceschanged=loadVoices;navTo('garden');
+    const unresolved=currentWeekWords().filter(w=>!w.pronunciationUrl);
+    (async()=>{for(const w of unresolved) await resolveHumanAudioForWord(w);saveStateQuietly();})().catch(()=>{});
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();

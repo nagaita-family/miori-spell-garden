@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f8f2ff" />
+  <title>Spell Garden</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles-bundle.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <button class="brand" data-nav="garden" aria-label="Go to garden">
+        <span class="brand-mark">✿</span>
+        <span><strong>Spell Garden</strong><small>Miori's little world</small></span>
+      </button>
+      <div class="level-wrap" aria-label="Level progress">
+        <div class="level-row"><span id="levelLabel">Level 1</span><span id="xpLabel">0 / 100 XP</span></div>
+        <div class="xp-track"><div id="xpFill" class="xp-fill"></div></div>
+      </div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-btn active" data-nav="garden">Garden</button>
+        <button class="nav-btn play-nav" data-nav="play">Play</button>
+        <button class="nav-btn" data-nav="parent">Parent</button>
+      </nav>
+    </header>
+    <main>
+      <section id="gardenView" class="view active-view" aria-labelledby="gardenTitle">
+        <div class="garden-head"><div><p class="eyebrow">YOUR GARDEN</p><h1 id="gardenTitle">A tiny place that grows with you.</h1></div><button id="gardenPlayBtn" class="primary-btn big-play">Play ✦</button></div>
+        <div id="gardenScene" class="garden-scene" aria-label="Interactive garden">
+          <div class="sky-glow glow-one"></div><div class="sky-glow glow-two"></div><div class="cloud cloud-a"></div><div class="cloud cloud-b"></div><div class="hill hill-back"></div><div class="hill hill-front"></div>
+          <div class="pond"><span></span><span></span><span></span></div>
+          <div class="path-stones" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="plot plot-left" data-plot="0"><div class="plot-soil"></div><div class="plant-slots" id="plantSlotsA"></div></div>
+          <div class="plot plot-right" data-plot="1"><div class="plot-soil"></div><div class="plant-slots" id="plantSlotsB"></div></div>
+          <div id="gardenObjects" class="garden-objects"></div>
+          <div class="garden-tip" id="gardenTip"><span>↔</span> Drag your friends and treasures anywhere you like.</div>
+        </div>
+      </section>
+      <section id="playView" class="view" aria-labelledby="playTitle">
+        <div id="playEmpty" class="empty-card hidden"><div class="empty-illustration">🌱</div><h1>No words yet</h1><p>Ask Dad to import this week's Word Pack in Parent.</p><button class="secondary-btn" data-nav="parent">Open Parent</button></div>
+        <div id="playHome" class="play-home hidden">
+          <div class="play-hero-card">
+            <div><p class="eyebrow">READY WHEN YOU ARE</p><h1 id="playTitle">Let’s make some words bloom.</h1><p id="playSubtitle">A short practice, picked just for you.</p><button id="startSessionBtn" class="primary-btn giant">Start Play <span>→</span></button></div>
+            <div class="play-mascot" aria-hidden="true"><div class="mini-rabbit"><i class="ear e1"></i><i class="ear e2"></i><b class="face"><i class="eye"></i><i class="eye"></i><i class="nose"></i></b></div><div class="spark s1">✦</div><div class="spark s2">✧</div><div class="spark s3">✦</div></div>
+          </div>
+          <div class="play-home-meta"><span id="weekLabel">This Week</span><span id="wordCountLabel">0 words</span><span>Hints are always okay ♡</span></div>
+        </div>
+        <div id="playGame" class="play-game hidden">
+          <div class="game-topline"><button id="exitPlayBtn" class="icon-btn" aria-label="Exit play">×</button><div class="stage-progress-wrap"><div class="stage-labels"><span id="stageName">Listen & Choose</span><span id="roundProgress">1 / 8</span></div><div class="stage-track"><div id="stageFill" class="stage-fill"></div></div></div><div id="sessionXp" class="session-xp">+0 XP</div></div>
+          <div class="game-card">
+            <div class="word-audio-row"><button id="audioBtn" class="audio-orb" aria-label="Play pronunciation"><span>🔊</span></button><div><p id="taskPrompt" class="task-prompt">Listen. Which spelling is right?</p><p id="taskSubprompt" class="task-subprompt">You can play the sound again.</p></div></div>
+            <div id="wordVisualCue" class="word-visual-cue" aria-label="Picture cue"></div><div id="questionArea" class="question-area"></div><div id="feedback" class="feedback" aria-live="polite"></div>
+            <div class="help-row"><button id="hintBtn" class="help-btn">✦ Hint</button><button id="peekBtn" class="help-btn">◉ Peek</button><button id="meaningBtn" class="help-btn">💡 Meaning</button><button id="exampleBtn" class="help-btn">💬 Example</button><button id="pictureBtn" class="help-btn">▧ Picture cue</button></div><div id="helpPanel" class="help-panel hidden"></div>
+          </div>
+        </div>
+        <div id="sessionDone" class="session-done hidden"><div class="done-sparkles">✦ ✧ ✦</div><p class="eyebrow">PLAY COMPLETE</p><h1>You made the garden grow!</h1><p id="doneSummary"></p><div class="done-actions"><button class="primary-btn" data-nav="garden">See Garden</button><button id="playAgainBtn" class="secondary-btn">Play Again</button></div></div>
+      </section>
+      <section id="parentView" class="view parent-view" aria-labelledby="parentTitle">
+        <div class="parent-head"><div><p class="eyebrow">DAD SPACE</p><h1 id="parentTitle">Parent</h1><p>Words, pronunciation, and learning data — without the game clutter.</p></div><div class="parent-head-actions"><label class="secondary-btn file-btn">Import Word Pack<input id="importInput" type="file" accept="application/json,.json" /></label><button id="exportBtn" class="secondary-btn">Export Backup</button><button id="addWordBtn" class="primary-btn">+ Add Word</button></div></div>
+        <div class="parent-grid">
+          <section class="panel this-week-panel"><div class="panel-title-row"><div><p class="eyebrow">THIS WEEK</p><input id="weekNameInput" class="week-name-input" value="This Week" aria-label="Week name" /></div><span id="weekCountBadge" class="badge">0 words</span></div><div id="thisWeekList" class="word-list"></div></section>
+          <aside class="panel settings-panel"><p class="eyebrow">PRONUNCIATION</p><h2>Preferred English Voice</h2><select id="voiceSelect" class="select"></select><p class="muted">Human audio is used first when a word has a playable source. Otherwise this voice is used.</p><button id="testVoiceBtn" class="secondary-btn full">🔊 Test voice</button><hr /><p class="eyebrow">GARDEN DATA</p><div class="mini-stats"><div><strong id="totalXpStat">0</strong><span>Total XP</span></div><div><strong id="practiceStat">0</strong><span>Answers</span></div><div><strong id="itemsStat">1</strong><span>Friends & items</span></div></div><button id="resetGardenBtn" class="danger-link">Reset garden progress</button></aside>
+        </div>
+        <section class="panel library-panel"><div class="panel-title-row"><div><p class="eyebrow">WORD LIBRARY</p><h2>All saved words</h2></div><input id="librarySearch" class="search-input" placeholder="Search words…" /></div><div id="libraryList" class="library-list"></div></section>
+      </section>
+    </main>
+  </div>
+  <div id="wordModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card"><div class="modal-head"><div><p class="eyebrow">WORD DETAILS</p><h2 id="modalTitle">Add Word</h2></div><button id="closeModalBtn" class="icon-btn">×</button></div>
+      <form id="wordForm" class="word-form"><input id="editWordId" type="hidden" /><label>Word<input id="wordInput" required autocomplete="off" /></label><label>English meaning<textarea id="meaningEnInput" rows="2"></textarea></label><label>Japanese meaning<textarea id="meaningJaInput" rows="2"></textarea></label><label>Example sentence<textarea id="exampleInput" rows="2"></textarea></label><div class="form-two"><label>Phonics focus<input id="phonicsInput" placeholder="ee / ble / igh ..." /></label><label>Picture cue<input id="pictureCueInput" placeholder="tiny beetle on a leaf" /></label></div><label>Miori's spelling<input id="mioriSpellingInput" placeholder="e.g. responsibol" autocomplete="off" /></label><label>Human pronunciation URL<input id="pronunciationUrlInput" type="url" placeholder="Optional .mp3 / .ogg URL" /></label><label class="check-row"><input id="thisWeekCheck" type="checkbox" checked /> Add to This Week</label><div class="modal-actions"><button type="button" id="cancelModalBtn" class="secondary-btn">Cancel</button><button type="submit" class="primary-btn">Save Word</button></div></form>
+    </div>
+  </div>
+  <div id="levelUpOverlay" class="level-overlay hidden" aria-live="polite"><div id="confetti" class="confetti"></div><div class="level-card"><p>✦ LEVEL UP ✦</p><h2 id="levelUpTitle">Level 2</h2><div id="rewardReveal" class="reward-reveal"></div><span id="rewardText">A new treasure joined your garden!</span><button id="closeLevelUpBtn" class="primary-btn">Yay!</button></div></div>
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="app-loader.js"></script>
+</body>
+</html>

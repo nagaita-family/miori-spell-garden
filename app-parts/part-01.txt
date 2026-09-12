@@ -1,0 +1,203 @@
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'miori_spell_garden_v1';
+  const DATA_VERSION = 1;
+  const REWARDS = [
+    { level: 1, id: 'bunny', type: 'rabbit', label: 'Mochi Bunny', emoji: '🐰' },
+    { level: 2, id: 'lantern', type: 'treasure', label: 'Moon Lantern', emoji: '🏮' },
+    { level: 3, id: 'bench', type: 'treasure', label: 'Tiny Bench', emoji: '🪑' },
+    { level: 4, id: 'birdhouse', type: 'treasure', label: 'Bird House', emoji: '🏠' },
+    { level: 5, id: 'duck', type: 'treasure', label: 'Puddle Duck', emoji: '🦆' },
+    { level: 6, id: 'mushroom', type: 'treasure', label: 'Mushroom Lamp', emoji: '🍄' },
+    { level: 7, id: 'cat', type: 'treasure', label: 'Garden Cat', emoji: '🐈' },
+    { level: 8, id: 'mailbox', type: 'treasure', label: 'Pink Mailbox', emoji: '📮' },
+    { level: 9, id: 'treehouse', type: 'treasure', label: 'Tree House', emoji: '🌳' },
+    { level: 10, id: 'fawn', type: 'treasure', label: 'Little Fawn', emoji: '🦌' }
+  ];
+
+  const STARTER_PACK = {
+    "weekName": "Sept 17 · Unit 5A",
+    "words": [
+      {
+        "id": "u5a-beetle",
+        "word": "beetle",
+        "meaningEn": "an insect with hard wings and a shiny body",
+        "meaningJa": "甲虫（硬い羽と光沢のある体をもつ昆虫）",
+        "example": "A shiny beetle crawled across the leaf.",
+        "phonicsFocus": "ee",
+        "pictureCue": "a tiny shiny bug on a green leaf",
+        "pictureEmoji": "🪲",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-butterfly",
+        "word": "butterfly",
+        "meaningEn": "an insect with big beautiful wings",
+        "meaningJa": "チョウ",
+        "example": "A butterfly opened its colorful wings in the garden.",
+        "phonicsFocus": "er",
+        "pictureCue": "big colorful wings above a flower",
+        "pictureEmoji": "🦋",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-cricket",
+        "word": "cricket",
+        "meaningEn": "a small, brown insect that jumps and makes a loud noise",
+        "meaningJa": "コオロギ",
+        "example": "We heard a cricket chirping near the grass.",
+        "phonicsFocus": "ck",
+        "pictureCue": "a small brown jumping insect in the grass",
+        "pictureEmoji": "🦗",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-grasshopper",
+        "word": "grasshopper",
+        "meaningEn": "a green insect that can jump high in the air",
+        "meaningJa": "バッタ",
+        "example": "The grasshopper jumped high over the grass.",
+        "phonicsFocus": "pp",
+        "pictureCue": "a green jumping insect springing over tall grass",
+        "pictureEmoji": "🦗",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-honeybee",
+        "word": "honeybee",
+        "meaningEn": "a black and yellow insect that flies makes honey and can sting",
+        "meaningJa": "ミツバチ",
+        "example": "A honeybee flew from flower to flower.",
+        "phonicsFocus": "ey",
+        "pictureCue": "a black-and-yellow bee beside a honey pot and flowers",
+        "pictureEmoji": "🐝",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-insect",
+        "word": "insect",
+        "meaningEn": "a small animal with 6 legs",
+        "meaningJa": "昆虫",
+        "example": "An insect has six legs.",
+        "phonicsFocus": "in",
+        "pictureCue": "a tiny six-legged creature under a magnifying glass",
+        "pictureEmoji": "🔎",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-ladybug",
+        "word": "ladybug",
+        "meaningEn": "a small red insect with black spots on the shell",
+        "meaningJa": "テントウムシ",
+        "example": "A ladybug landed on my hand.",
+        "phonicsFocus": "dy",
+        "pictureCue": "a small red bug with round black spots on a leaf",
+        "pictureEmoji": "🐞",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-raisin",
+        "word": "raisin",
+        "meaningEn": "a dried grape",
+        "meaningJa": "レーズン、干しぶどう",
+        "example": "I found a raisin in my cereal.",
+        "phonicsFocus": "ai",
+        "pictureCue": "a few wrinkly dried grapes beside fresh purple grapes",
+        "pictureEmoji": "🍇",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-riding",
+        "word": "riding",
+        "meaningEn": "on a bike, in a car, or other way to move right now",
+        "meaningJa": "乗り物などに乗って移動していること",
+        "example": "She is riding her bike to the park.",
+        "phonicsFocus": "i",
+        "pictureCue": "a child moving along on a bicycle",
+        "pictureEmoji": "🚲",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      },
+      {
+        "id": "u5a-thicket",
+        "word": "thicket",
+        "meaningEn": "a group of bushes or small trees growing closely together",
+        "meaningJa": "やぶ、茂み",
+        "example": "A little bird hid inside the thicket.",
+        "phonicsFocus": "ck",
+        "pictureCue": "a dense cluster of bushes and small trees",
+        "pictureEmoji": "🌿",
+        "mioriSpelling": "",
+        "pronunciationUrl": ""
+      }
+    ]
+  };
+
+  const COMMON_CONFUSIONS = [
+    ['ee','ea','ie'],['ie','ei','ee'],['ea','ee','ai'],['ai','ay','ei'],['ay','ai','ey'],
+    ['oa','ow','ou'],['ow','ou','oa'],['ou','ow','au'],['igh','ie','i'],['tion','sion','cion'],
+    ['ble','bol','bel'],['le','el','al'],['er','ir','ur'],['ir','er','ur'],['ur','er','ir'],
+    ['ck','k','c'],['pp','p','bb'],['ss','s','c'],['tt','t','dd'],['in','en','im'],['dy','di','de'],['ph','f','ff'],['wh','w','h'],['ch','tch','sh'],['tch','ch','sh']
+  ];
+
+  const STAGES = [
+    { id: 1, name: 'Listen & Choose', prompt: 'Listen. Which spelling is right?', sub: 'Match the sound to the word.' },
+    { id: 2, name: 'Fill the Gap', prompt: 'Which letters fit the gap?', sub: 'Look closely at the tricky part.' },
+    { id: 3, name: 'Type the Gap', prompt: 'Type the missing part.', sub: 'Remember it without choices.' },
+    { id: 4, name: 'Full Spelling', prompt: 'Type the whole word.', sub: 'Listen, remember, and spell it.' }
+  ];
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `w_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const escapeHtml = (s='') => String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+  function defaultState() {
+    return {
+      version: DATA_VERSION,
+      weekName: STARTER_PACK.weekName,
+      thisWeek: STARTER_PACK.words.map(w => w.id),
+      library: STARTER_PACK.words.map(w => normalizeWord(w)),
+      preferredVoice: '',
+      garden: {
+        xp: 0,
+        level: 1,
+        plantGrowth: 0,
+        objects: {
+          bunny: { x: 56, y: 59, mood: 'idle' }
+        }
+      },
+      stats: { totalAnswers: 0, sessions: 0 }
+    };
+  }
+
+  let state = loadState();
+  let currentView = 'garden';
+  let session = null;
+  let voices = [];
+  let toastTimer = null;
+  let pendingLevelUps = [];
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      return normalizeState(parsed);
+    } catch (e) {
+      console.warn('Could not load saved data', e);
+      return defaultState();
+    }
+  }
+
+  function normalizeState(input) {
+    const base =
