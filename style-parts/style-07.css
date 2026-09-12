@@ -1,0 +1,45 @@
+/* v1.3 Focus Hint: the problem itself becomes the hint. No reading-heavy coach card. */
+
+/* Stage 3: type directly into visual letter slots inside the word. */
+.stage3-word-line{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font:900 42px "Nunito",sans-serif;letter-spacing:.035em;color:#3f3852}
+.stage3-input-group{position:relative;display:inline-flex;align-items:center;margin:0 2px;isolation:isolate}
+.stage3-slot-row{display:flex;gap:6px;align-items:center}
+.stage3-letter-slot{width:43px;height:56px;display:grid;place-items:center;border:2px solid #ddd3e8;border-radius:14px;background:#fff;font:900 30px "Nunito",sans-serif;color:#51455e;box-shadow:0 5px 13px rgba(84,61,102,.05);transition:.16s}
+.stage3-input-group:focus-within .stage3-letter-slot{border-color:#cab4e3;background:#fdfbff}
+.stage3-real-input{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;opacity:0!important;padding:0!important;border:0!important;z-index:5;cursor:text;color:transparent!important;background:transparent!important;box-shadow:none!important;caret-color:transparent}
+.stage3-letter-slot.filled{border-color:#cbb9df;background:#fcf9ff}
+.stage3-letter-slot.hint-target,.stage4-hint-slot.hint-target{border-color:#b586d7!important;background:linear-gradient(145deg,#f7edff,#fff9d9)!important;box-shadow:0 0 0 7px rgba(181,134,215,.10),0 8px 20px rgba(108,76,134,.10)!important;animation:focusHintPulse 1.05s ease-in-out infinite}
+.stage3-letter-slot.hint-solved,.stage4-hint-slot.hint-solved{border-color:#78bd90!important;background:#eef9f1!important;color:#397d52!important;animation:none!important;box-shadow:0 0 0 6px rgba(120,189,144,.10)!important}
+.stage3-letter-slot.pair-hint,.stage4-hint-slot.pair-hint{box-shadow:inset 0 -4px 0 #d5b9e8;animation:pairPulse 1.05s ease-in-out infinite}
+.stage3-letter-slot.hint-target.pair-hint,.stage4-hint-slot.hint-target.pair-hint{animation:focusHintPulse 1.05s ease-in-out infinite}
+.double-badge{position:absolute;right:-26px;top:-20px;display:grid;place-items:center;min-width:31px;height:25px;padding:0 6px;border-radius:999px;background:#f3e8fb;color:#9b6fba;font:900 12px "Nunito",sans-serif;box-shadow:0 4px 10px rgba(96,67,119,.08);z-index:7}
+@keyframes focusHintPulse{50%{transform:translateY(-2px) scale(1.035);box-shadow:0 0 0 10px rgba(181,134,215,.06),0 10px 22px rgba(108,76,134,.13)}}
+@keyframes pairPulse{50%{background:#faf3ff;box-shadow:inset 0 -6px 0 #c9a2e1}}
+
+/* The hint is now only controls: sound + three letters + close. */
+.typing-hint-strip{width:min(430px,92%);display:flex;align-items:center;justify-content:center;gap:10px;margin:5px auto 1px;padding:10px 12px;border-radius:20px;background:linear-gradient(135deg,#faf5ff,#fffaf0);border:1px solid #e8ddef;box-shadow:0 9px 24px rgba(76,57,91,.09);animation:hintStripIn .18s ease-out both}
+@keyframes hintStripIn{from{opacity:0;transform:translateY(5px) scale(.985)}to{opacity:1;transform:none}}
+.hint-icon-btn{width:45px;height:45px;border:1px solid #e3d8eb;border-radius:14px;background:#fff;font-size:19px;display:grid;place-items:center;color:#786980;box-shadow:0 4px 10px rgba(74,58,86,.05)}
+.hint-letter-choices{display:flex;align-items:center;gap:8px}
+.hint-letter-choice{width:58px;height:52px;border:2px solid #ddd0e8;border-radius:15px;background:#fff;font:900 24px "Nunito",sans-serif;color:#574a63;box-shadow:0 5px 12px rgba(73,55,84,.06);transition:.15s}
+.hint-letter-choice:hover{transform:translateY(-1px);border-color:#baa1d2}
+.hint-letter-choice.wrong{border-color:#e9a0a5;background:#fff0f1;color:#b84d54;animation:shake .35s}
+.hint-letter-choice.correct{border-color:#7fc095;background:#eff9f2;color:#397e53;transform:scale(1.05)}
+
+/* Stage 4 only: a tiny visual position rail, never another copy of the word. */
+.stage4-hint-track{display:flex;justify-content:center;align-items:center;gap:4px;min-height:42px;margin:-3px 0 1px}
+.stage4-hint-slot{width:28px;height:36px;border:1px solid #e5deea;border-radius:9px;background:#faf8fb;display:grid;place-items:center;font:900 18px "Nunito",sans-serif;color:#625769;transition:.15s}
+.stage4-hint-slot.future{color:transparent;background:#f6f3f7}
+.stage4-hint-slot.known{border-color:#d9cde2;background:#fff;color:#61556b}
+
+/* Stages 1/2: Hint is just slow sound + a visual pulse on the existing task. */
+.audio-orb.hint-pulse,.gap-slot.hint-pulse{animation:simpleHintPulse 1.2s ease-in-out 1}
+@keyframes simpleHintPulse{0%,100%{transform:scale(1);box-shadow:inherit}45%{transform:scale(1.08);box-shadow:0 0 0 10px rgba(182,139,214,.09),0 10px 26px rgba(125,85,156,.14)}}
+
+@media(max-height:720px){
+  .stage3-word-line{font-size:37px}
+  .stage3-letter-slot{width:39px;height:50px;font-size:27px}
+  .typing-hint-strip{padding:8px 10px}
+  .hint-icon-btn{width:41px;height:41px}
+  .hint-letter-choice{width:53px;height:47px;font-size:22px}
+}
