@@ -18,61 +18,141 @@
     task.usedHint=true;word.learning.hintUsed++;saveStateQuietly();
     playWordAudio(word,true);
 
-    let targetIndex=0;
-    let span=task.span||weakSpanFor(word);
-    let typed='';
+    const standardPanel=$('#helpPanel');
+    if(standardPanel){standardPanel.className='help-panel hidden';standardPanel.innerHTML=''}
 
-    if(task.stage===4){
-      const input=$('.full-input');typed=(input?.value||'').toLowerCase();
-      let i=0;while(i<word.word.length&&typed[i]===word.word[i])i++;
-      targetIndex=Math.min(i,Math.max(0,word.word.length-1));
-    }else if(task.stage===3){
-      const input=$('.gap-input');typed=(input?.value||'').toLowerCase();
-      let local=0;while(local<span.correct.length&&typed[local]===span.correct[local])local++;
-      local=Math.min(local,Math.max(0,span.correct.length-1));
-      targetIndex=span.start+local;
-    }else{
-      targetIndex=span.start;
+    /* Stages 1/2 only need a small listening reminder. The typing coach is for Stages 3/4. */
+    if(task.stage<3){
+      if(!standardPanel)return;
+      standardPanel.className='help-panel pretype-hint';
+      standardPanel.innerHTML='<strong>✦ Slow Hint</strong><br>Listen once more, then look at the choices. You can take your time.';
+      standardPanel.classList.remove('hidden');
+      return;
     }
 
-    const targetChar=word.word[targetIndex]||word.word[0]||'';
-    const choices=[targetChar,...closestConfusion(targetChar)];
-    const fallback=['e','a','i','o','u','b','d','p','t','c'];
-    for(const c of fallback){if(!choices.includes(c))choices.push(c);if(choices.length>=3)break}
-    const finalChoices=shuffle([...new Set(choices.filter(Boolean))]).slice(0,3);
+    const wrap=$('.type-wrap');
+    const input=task.stage===3?$('.gap-input'):$('.full-input');
+    if(!wrap||!input)return;
+    const old=$('.typing-hint-card',wrap);if(old)old.remove();
 
-    const map=[];
+    const span=task.span||weakSpanFor(word);
+    const typed=(input.value||'').toLowerCase();
+    let targetIndex=0;
+    let localIndex=0;
+    let complete=false;
+
+    if(task.stage===3){
+      while(localIndex<span.correct.length&&typed[localIndex]===span.correct[localIndex])localIndex++;
+      if(localIndex>=span.correct.length) complete=true;
+      else targetIndex=span.start+localIndex;
+    }else{
+      let i=0;while(i<word.word.length&&typed[i]===word.word[i])i++;
+      if(i>=word.word.length) complete=true;
+      else targetIndex=i;
+    }
+
+    const card=document.createElement('div');
+    card.className='typing-hint-card';
+
+    if(complete){
+      card.innerHTML=`<button class="typing-hint-close" aria-label="Close hint">×</button><div class="typing-hint-done"><span>✦</span><div><strong>You found this part.</strong><br>Press Check when you're ready.</div></div>`;
+      $('.typing-hint-close',card).onclick=()=>card.remove();
+      input.insertAdjacentElement('afterend',card);input.focus();return;
+    }
+
+    const targetChar=word.word[targetIndex]||'';
+    const isDouble=(word.word[targetIndex-1]===targetChar||word.word[targetIndex+1]===targetChar);
+    const choices=[targetChar,...closestConfusion(targetChar).filter(c=>String(c).length===1)];
+    const fallback=['e','a','i','o','u','b','d','p','t','c','g','s','r','l','m','n','h','f','v','w','y'];
+    for(const c of fallback){if(!choices.includes(c))choices.push(c);if(choices.length>=3)break}
+    const finalChoices=shuffle([...new Set(choices.filter(c=>String(c).length===1))]).slice(0,3);
+
+    const tiles=[];
     for(let i=0;i<word.word.length;i++){
-      if(i===targetIndex){map.push('<span class="hint-map-char target">?</span>');continue}
-      let shown='•';
-      let dim=true;
-      if(task.stage===3){
-        if(i<span.start||i>span.end){shown=word.word[i];dim=false}
+      let shown='';let cls='typing-hint-tile';
+      if(i===targetIndex){shown='?';cls+=' target'}
+      else if(task.stage===3){
+        if(i<span.start||i>span.end){shown=word.word[i];cls+=' outside'}
         else{
           const local=i-span.start;
-          if(local<typed.length&&typed[local]===word.word[i]){shown=typed[local];dim=false}
+          if(local<typed.length&&typed[local]===word.word[i])shown=typed[local];
+          else cls+=' future';
         }
-      }else if(task.stage===4){
-        if(i<targetIndex&&typed[i]===word.word[i]){shown=typed[i];dim=false}
-      }else if(task.stage===2){
-        if(i<span.start||i>span.end){shown=word.word[i];dim=false}
+      }else{
+        if(i<typed.length&&typed[i]===word.word[i])shown=typed[i];
+        else cls+=' future';
       }
-      map.push(`<span class="hint-map-char${dim?' dim':''}">${escapeHtml(shown)}</span>`);
+      tiles.push(`<span class="${cls}" data-index="${i}">${shown?escapeHtml(shown):'&nbsp;'}</span>`);
     }
 
-    const panel=$('#helpPanel');
-    panel.className='help-panel hint-mode';
-    panel.innerHTML=`<button class="hint-close" aria-label="Close hint">×</button><p class="hint-kicker">SLOW HINT</p><h3 class="hint-title">Which letter goes right here?</h3><span class="hint-position">Letter ${targetIndex+1} of ${word.word.length}</span><div class="hint-word-map">${map.join('')}</div><p class="hint-instruction">The glowing box is the one letter this hint is helping with.</p><div class="hint-choices">${finalChoices.map(c=>`<button class="hint-choice" data-char="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>`;
-    panel.classList.remove('hidden');
-    $('.hint-close',panel).onclick=()=>{panel.className='help-panel hidden';panel.innerHTML=''};
-    $$('.hint-choice',panel).forEach(b=>b.onclick=()=>{
-      if(b.dataset.char!==targetChar){b.classList.add('wrong');return}
-      $$('.hint-choice',panel).forEach(x=>x.disabled=true);
+    let clue='Say the word slowly. Listen to the sound around the glowing spot.';
+    if(task.stage===3&&span.correct.length>1){
+      clue=`This missing part has ${span.correct.length} letters. We’ll solve only one letter at a time.`;
+    }
+    if(isDouble){
+      clue=task.stage===3&&span.correct.length>1
+        ? `This missing part has ${span.correct.length} letters. Notice the pattern: the same letter repeats.`
+        : 'Notice the pattern: this is a double letter. The same letter repeats.';
+    }
+
+    const stepLabel=task.stage===3
+      ? `Missing part · letter ${localIndex+1} of ${span.correct.length}`
+      : `Whole word · letter ${targetIndex+1}`;
+
+    card.innerHTML=`
+      <button class="typing-hint-close" aria-label="Close hint">×</button>
+      <div class="typing-hint-top">
+        <span class="typing-hint-kicker">✦ Slow Hint</span>
+        <span class="typing-hint-step">${escapeHtml(stepLabel)}</span>
+        <button class="typing-hint-replay" type="button">🔊 Slow again</button>
+      </div>
+      <div class="typing-hint-body">
+        <div class="typing-hint-left">
+          <p class="typing-hint-message">You don’t need the whole answer. Just notice this one spot.</p>
+          <p class="typing-hint-clue">${escapeHtml(clue)}</p>
+          <div class="typing-hint-map">${tiles.join('')}</div>
+        </div>
+        <div class="typing-hint-right">
+          <span class="typing-hint-question">Which ONE letter fits the glowing box?</span>
+          <div class="typing-hint-choices">${finalChoices.map(c=>`<button class="typing-hint-choice" type="button" data-char="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>
+          <p class="typing-hint-status">Choose one here — it will go straight into your answer.</p>
+        </div>
+      </div>`;
+
+    input.insertAdjacentElement('afterend',card);
+    $('.typing-hint-close',card).onclick=()=>{card.remove();input.focus()};
+    $('.typing-hint-replay',card).onclick=()=>{playWordAudio(word,true);input.focus()};
+
+    const status=$('.typing-hint-status',card);
+    $$('.typing-hint-choice',card).forEach(b=>b.onclick=()=>{
+      if(b.dataset.char!==targetChar){
+        b.classList.add('wrong');
+        status.textContent='Not that one. Listen again and try another.';
+        status.className='typing-hint-status try';
+        setTimeout(()=>b.classList.remove('wrong'),450);
+        return;
+      }
+
+      $$('.typing-hint-choice',card).forEach(x=>x.disabled=true);
       b.classList.add('correct');
-      const target=$('.hint-map-char.target',panel);if(target){target.textContent=targetChar;target.classList.add('solved')}
-      const instruction=$('.hint-instruction',panel);if(instruction)instruction.textContent='Yes — this is the letter. Nice!';
-      if(task.stage===3||task.stage===4)insertHintCharacter(task,word,targetIndex,targetChar);
-      setTimeout(()=>{panel.className='help-panel hidden';panel.innerHTML=''},750);
+
+      let value=input.value||'';
+      let editIndex=task.stage===3?targetIndex-span.start:targetIndex;
+      const before=value.slice(0,editIndex);
+      const after=value.length>editIndex?value.slice(editIndex+1):'';
+      input.value=before+targetChar+after;
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+
+      const tile=$(`.typing-hint-tile[data-index="${targetIndex}"]`,card);
+      if(tile){tile.textContent=targetChar;tile.classList.add('solved')}
+      card.classList.add('settled');
+      status.textContent=isDouble
+        ? `Yes — ${targetChar}. Good catch: this is a double-letter spot. Keep typing while the hint stays here.`
+        : `Yes — ${targetChar}. Nice. Keep typing while the hint stays here.`;
+      status.className='typing-hint-status good';
+
+      const caret=Math.min(input.value.length,editIndex+1);
+      input.focus();input.setSelectionRange?.(caret,caret);
     });
   }
 
