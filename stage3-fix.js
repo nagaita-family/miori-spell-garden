@@ -120,15 +120,12 @@
     });
   };
 
-  /* Capture Stage 3 Hint clicks. The main app can still record Hint usage;
-     this direct renderer runs immediately after and replaces any stale UI. */
   document.addEventListener('click',e=>{
     const btn=e.target.closest?.('#hintBtn');
     if(!btn||!visibleStage3()) return;
     setTimeout(showDirectHint,0);
   },true);
 
-  /* If Stage 3 is rendered, make sure the first box is keyboard-ready. */
   const focusStage3=()=>{
     const ctx=visibleStage3();
     if(!ctx) return;
@@ -140,4 +137,14 @@
   };
   const observer=new MutationObserver(()=>setTimeout(focusStage3,0));
   observer.observe(document.documentElement,{childList:true,subtree:true});
+})();
+
+/* Load the Stage 4 Hint helper after the Stage 3 helper so each stage owns its own focused Hint behavior. */
+(()=>{
+  if(document.querySelector('script[data-stage4-helper]')) return;
+  const s=document.createElement('script');
+  s.src='stage4-fix.js';
+  s.defer=true;
+  s.dataset.stage4Helper='1';
+  document.head.appendChild(s);
 })();
