@@ -1,0 +1,114 @@
+/* v1.5 Stage 4 Hint: same simple visual language as Stage 3. */
+.stage4-direct-track{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:52px;
+  margin:0 auto -2px;
+  max-width:100%;
+  flex-wrap:wrap;
+}
+.stage4-direct-cell{
+  width:34px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  border:1.5px solid #e4ddea;
+  border-radius:11px;
+  background:#faf8fb;
+  color:#5f5467;
+  font:900 21px "Nunito",sans-serif;
+  transition:.15s;
+}
+.stage4-direct-cell.future{color:transparent;background:#f7f4f8}
+.stage4-direct-cell.known{background:#fff;border-color:#d9cce2;color:#5d5266}
+.stage4-direct-cell.target{
+  width:42px;
+  height:50px;
+  border:2.5px solid #b487d4;
+  background:linear-gradient(145deg,#f7edff,#fff9dd);
+  color:#966bb6;
+  box-shadow:0 0 0 7px rgba(180,135,212,.10),0 8px 18px rgba(101,75,123,.09);
+  animation:stage4TargetPulse 1.05s ease-in-out infinite;
+}
+.stage4-direct-cell.solved{
+  border:2px solid #7ec095;
+  background:#eef9f1;
+  color:#397d52;
+  box-shadow:0 0 0 6px rgba(126,192,149,.10);
+}
+.stage4-direct-cell.pair{box-shadow:inset 0 -4px 0 #d6bae8}
+.stage4-double-badge{
+  position:absolute;
+  top:-18px;
+  left:50%;
+  transform:translateX(-50%);
+  min-width:34px;
+  height:25px;
+  padding:0 7px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#f2e7fa;
+  color:#9469b3;
+  font:900 12px "Nunito",sans-serif;
+  box-shadow:0 4px 10px rgba(92,65,112,.08);
+}
+@keyframes stage4TargetPulse{50%{transform:translateY(-2px) scale(1.035);box-shadow:0 0 0 10px rgba(180,135,212,.06),0 10px 22px rgba(101,75,123,.13)}}
+
+.full-input.stage4-hint-active{
+  border-color:#c9b3df!important;
+  box-shadow:0 0 0 5px rgba(177,142,207,.08)!important;
+}
+.stage4-direct-controls{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:min(430px,92%);
+  margin:2px auto 2px;
+  padding:9px 11px;
+  border-radius:19px;
+  background:linear-gradient(135deg,#faf5ff,#fffaf0);
+  border:1px solid #e7dced;
+  box-shadow:0 8px 22px rgba(74,56,88,.08);
+  animation:stage4HintIn .18s ease-out both;
+}
+@keyframes stage4HintIn{from{opacity:0;transform:translateY(4px) scale(.985)}to{opacity:1;transform:none}}
+.stage4-hint-icon{
+  width:44px;
+  height:44px;
+  border:1px solid #e2d7ea;
+  border-radius:13px;
+  background:#fff;
+  color:#77687f;
+  display:grid;
+  place-items:center;
+  font-size:18px;
+  box-shadow:0 4px 10px rgba(72,57,83,.05);
+}
+.stage4-letter-choices{display:flex;align-items:center;gap:8px}
+.stage4-letter-choice{
+  width:57px;
+  height:50px;
+  border:2px solid #dccfe7;
+  border-radius:14px;
+  background:#fff;
+  color:#564960;
+  font:900 23px "Nunito",sans-serif;
+  box-shadow:0 5px 12px rgba(72,55,83,.06);
+  transition:.15s;
+}
+.stage4-letter-choice:hover{transform:translateY(-1px);border-color:#b9a0d0}
+.stage4-letter-choice.wrong{border-color:#e9a0a5;background:#fff0f1;color:#b84d54;animation:shake .35s}
+.stage4-letter-choice.correct{border-color:#7fc095;background:#eff9f2;color:#397e53;transform:scale(1.05)}
+
+@media(max-height:720px){
+  .stage4-direct-cell{width:31px;height:40px;font-size:19px}
+  .stage4-direct-cell.target{width:38px;height:46px}
+  .stage4-direct-controls{padding:7px 9px}
+  .stage4-hint-icon{width:40px;height:40px}
+  .stage4-letter-choice{width:52px;height:45px;font-size:21px}
+}
