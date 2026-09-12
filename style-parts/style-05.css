@@ -1,0 +1,61 @@
+/* v1.1 visual refinements: full-body characters, clearer Hint, magical Peek, neutral Stage 2 gap */
+
+/* --- Full-body Mochi in the Garden --- */
+.rabbit{width:110px;height:154px;overflow:visible}
+.rabbit .ear{top:0;z-index:3}
+.rabbit .body{width:86px;height:76px;left:12px;top:47px;bottom:auto;z-index:4;border-radius:50%;box-shadow:inset -8px -8px 0 rgba(231,222,217,.35),0 5px 7px rgba(86,70,80,.05)}
+.rabbit:before{content:"";position:absolute;width:66px;height:62px;left:22px;top:99px;background:#fffaf6;border-radius:48% 48% 42% 42%;box-shadow:inset -7px -6px 0 rgba(231,222,217,.32);z-index:2}
+.rabbit:after{content:"";position:absolute;width:30px;height:16px;left:18px;bottom:-1px;background:#fff8f3;border-radius:60% 48% 55% 55%;box-shadow:44px 0 0 #fff8f3;z-index:1}
+.rabbit .body:before{content:"";position:absolute;width:18px;height:34px;left:21px;top:60px;background:#fffaf6;border-radius:50%;box-shadow:27px 0 0 #fffaf6;transform:rotate(8deg);z-index:-1}
+.rabbit[data-mood="happy"]:before{transform:rotate(-1deg)}
+.rabbit[data-mood="sleeping"]:before{transform:translateY(2px) scaleY(.96)}
+
+/* --- Full-body Mochi on the Play home screen --- */
+.play-mascot{height:270px}
+.mini-rabbit{width:180px;height:220px}
+.mini-rabbit .ear{z-index:4}
+.mini-rabbit .face{inset:auto;left:7px;top:38px;width:166px;height:142px;z-index:3}
+.mini-rabbit:before{content:"";position:absolute;width:86px;height:78px;left:47px;top:145px;background:#fff;border-radius:48% 48% 42% 42%;box-shadow:0 12px 24px rgba(106,76,115,.09),inset -8px -6px 0 rgba(238,230,238,.45);z-index:2}
+.mini-rabbit:after{content:"";position:absolute;width:38px;height:19px;left:34px;bottom:-3px;background:#fff;border-radius:60%;box-shadow:74px 0 0 #fff;z-index:1}
+.mini-rabbit .face:before{content:"";position:absolute;width:22px;height:43px;left:46px;top:117px;background:#fff;border-radius:50%;box-shadow:51px 0 0 #fff;z-index:-1}
+
+/* --- Stage 2: one conceptual gap, never a character-count indicator --- */
+.gap-word{letter-spacing:.045em;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap}
+.gap-slot{display:inline-grid;place-items:center;width:86px;height:58px;margin:0 7px;border:2px solid #c8b4ea;border-radius:18px;background:linear-gradient(145deg,#faf7ff,#f3edff);color:#9a7ec8;font:900 28px "Nunito",sans-serif;letter-spacing:0;box-shadow:inset 0 1px 0 #fff,0 7px 18px rgba(129,99,166,.10)}
+.gap-slot span{transform:translateY(-1px)}
+
+/* --- Help buttons: larger and easier to hit on Chromebook --- */
+.help-row{gap:10px;padding-top:16px}
+.help-btn{min-height:45px;padding:11px 16px;border-radius:14px;font-size:14px}
+#hintBtn{background:linear-gradient(135deg,#f2eaff,#fff3d9);border-color:#dfd0f0;color:#6c5587;box-shadow:0 5px 14px rgba(112,81,145,.08)}
+#peekBtn{background:linear-gradient(135deg,#fff3fa,#f2edff);border-color:#e7d6ea;color:#775a82}
+
+/* --- Hint: centered, large, and explicit about the exact letter --- */
+.help-panel.hint-mode{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:180;width:min(700px,calc(100vw - 90px));max-width:none;margin:0;padding:26px 30px 28px;border-radius:28px;background:rgba(255,253,255,.98);border:1px solid #e7dcf0;box-shadow:0 30px 90px rgba(63,45,79,.26);text-align:center;color:#5f5369;line-height:1.45}
+.hint-close{position:absolute;right:16px;top:14px;width:38px;height:38px;border:0;border-radius:12px;background:#f4eff7;color:#84748d;font-size:22px}
+.hint-kicker{margin:0 0 4px;font-size:11px;font-weight:900;letter-spacing:.15em;color:#ae8ac0;text-transform:uppercase}
+.hint-title{margin:0;font:900 26px "Nunito",sans-serif;color:#493d56}
+.hint-position{display:inline-block;margin-top:8px;padding:6px 11px;border-radius:999px;background:#f5effd;color:#795f91;font-size:12px;font-weight:900}
+.hint-word-map{display:flex;justify-content:center;align-items:center;gap:5px;margin:21px auto 8px;min-height:62px;font:900 31px "Nunito",sans-serif;letter-spacing:.02em}
+.hint-map-char{display:grid;place-items:center;min-width:31px;height:46px;padding:0 4px;border-radius:10px;color:#746b79;background:#faf8fb}
+.hint-map-char.dim{color:#b8afb9;background:#fbfafc}
+.hint-map-char.target{min-width:46px;height:54px;border:3px solid #c094df;background:linear-gradient(145deg,#f8eeff,#fff9dc);color:#9a72bd;box-shadow:0 0 0 7px rgba(192,148,223,.12),0 9px 20px rgba(125,85,156,.12);animation:hintTargetPulse 1.15s ease-in-out infinite}
+.hint-map-char.target.solved{animation:none;border-color:#83c69b;background:#effaf2;color:#3c8358;box-shadow:0 0 0 7px rgba(131,198,155,.12)}
+@keyframes hintTargetPulse{50%{transform:translateY(-3px) scale(1.04);box-shadow:0 0 0 10px rgba(192,148,223,.07),0 12px 25px rgba(125,85,156,.16)}}
+.hint-instruction{margin:5px 0 0;font-size:14px;font-weight:800;color:#74677d}
+.hint-choices{gap:12px;margin-top:17px}
+.hint-choice{min-width:82px;min-height:62px;border:2px solid #ded2e9;border-radius:17px;padding:9px 18px;background:#fff;font:900 26px "Nunito",sans-serif;color:#5e506c;box-shadow:0 7px 16px rgba(72,55,84,.07);transition:.15s}
+.hint-choice:hover{transform:translateY(-2px);border-color:#bea7d7}
+.hint-choice.wrong{border-color:#eca2a7;background:#fff0f1;color:#ba5158;animation:shake .35s}
+.hint-choice.correct{border-color:#82c398;background:#effaf2;color:#3d8357;transform:scale(1.05)}
+
+/* --- Peek: transparent -> clear -> transparent with sparkles --- */
+.help-panel.peek-mode{position:fixed;inset:78px 0 0;z-index:190;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:rgba(251,247,255,.10);backdrop-filter:blur(1.5px);display:grid;place-items:center;pointer-events:none;overflow:hidden}
+.peek-magic{position:relative;display:grid;place-items:center;min-width:460px;min-height:210px;padding:42px 64px;border-radius:44px;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.94),rgba(248,238,255,.62) 55%,rgba(255,255,255,0) 76%);animation:peekReveal 2.9s ease-in-out both}
+.peek-word{font:900 62px "Nunito",sans-serif;letter-spacing:.08em;color:#5c4770;text-shadow:0 3px 0 rgba(255,255,255,.9),0 12px 35px rgba(146,102,177,.18)}
+.peek-spark{position:absolute;color:#c690d3;font-size:30px;opacity:0;animation:peekTwinkle 2.4s ease-in-out both}
+.peek-spark.s1{left:9%;top:18%;animation-delay:.18s}.peek-spark.s2{right:8%;top:25%;font-size:22px;animation-delay:.48s}.peek-spark.s3{left:18%;bottom:17%;font-size:20px;animation-delay:.78s}.peek-spark.s4{right:17%;bottom:15%;font-size:34px;animation-delay:.32s}.peek-spark.s5{left:48%;top:2%;font-size:18px;animation-delay:.9s}
+@keyframes peekReveal{0%{opacity:0;transform:scale(.92);filter:blur(8px)}24%{opacity:.48;filter:blur(3px)}46%,68%{opacity:1;transform:scale(1);filter:blur(0)}100%{opacity:0;transform:scale(1.035);filter:blur(7px)}}
+@keyframes peekTwinkle{0%,100%{opacity:0;transform:scale(.3) rotate(0deg)}35%{opacity:.45}55%{opacity:1;transform:scale(1.2) rotate(16deg)}75%{opacity:.35;transform:scale(.75) rotate(35deg)}}
+
+@media(max-height:720px){.help-panel.hint-mode{top:53%;padding:20px 26px}.hint-word-map{margin-top:14px}.hint-choice{min-height:56px}.peek-word{font-size:54px}.peek-magic{min-height:180px}}
