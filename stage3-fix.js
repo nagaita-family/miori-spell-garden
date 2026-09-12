@@ -1,106 +1,143 @@
 (()=>{
-  const enhance=()=>{
-    document.querySelectorAll('.stage3-input-group').forEach(group=>{
-      if(group.dataset.keyboardFixed==='1') return;
-      const hidden=group.querySelector('.stage3-real-input');
-      const row=group.querySelector('.stage3-slot-row');
-      if(!hidden||!row) return;
-      group.dataset.keyboardFixed='1';
+  const STORAGE_KEY='miori_spell_garden_v1';
 
-      const oldSlots=[...row.querySelectorAll('.stage3-letter-slot')];
-      const boxes=oldSlots.map((old,i)=>{
-        const box=document.createElement('input');
-        box.type='text';
-        box.inputMode='text';
-        box.autocomplete='off';
-        box.spellcheck=false;
-        box.maxLength=1;
-        box.className=old.className+' stage3-letter-box';
-        box.dataset.local=old.dataset.local??String(i);
-        box.setAttribute('aria-label',`Missing letter ${i+1}`);
-        old.replaceWith(box);
-        return box;
-      });
+  const visibleStage3=()=>{
+    const group=document.querySelector('#questionArea .stage3-input-group');
+    if(!group) return null;
+    const boxes=[...group.querySelectorAll('.stage3-letter-box')];
+    if(!boxes.length) return null;
+    const line=group.closest('.stage3-word-line');
+    if(!line) return null;
+    const parts=[...line.children];
+    const before=(parts[0]?.textContent||'').toLowerCase();
+    const after=(parts[2]?.textContent||'').toLowerCase();
+    return {group,boxes,line,before,after};
+  };
 
-      hidden.tabIndex=-1;
-      hidden.setAttribute('aria-hidden','true');
+  const findWord=(ctx)=>{
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY);
+      const state=raw?JSON.parse(raw):null;
+      const words=Array.isArray(state?.library)?state.library:[];
+      return words.find(w=>{
+        const word=String(w.word||'').toLowerCase();
+        return word.startsWith(ctx.before) && word.endsWith(ctx.after) && word.length===ctx.before.length+ctx.boxes.length+ctx.after.length;
+      })||null;
+    }catch{return null}
+  };
 
-      let syncing=false;
-      const syncHidden=()=>{
-        if(syncing) return;
-        syncing=true;
-        hidden.value=boxes.map(b=>b.value.toLowerCase()).join('');
-        syncing=false;
-      };
-      const syncBoxes=()=>{
-        if(syncing) return;
-        syncing=true;
-        const chars=(hidden.value||'').toLowerCase().split('');
-        boxes.forEach((b,i)=>{
-          b.value=chars[i]||'';
-          b.classList.toggle('filled',!!b.value);
-        });
-        syncing=false;
-      };
-      const focusBest=()=>{
-        const firstEmpty=boxes.find(b=>!b.value) || boxes[boxes.length-1];
-        firstEmpty?.focus();
-        firstEmpty?.select?.();
-      };
+  const confusions=(char)=>{
+    const map={
+      a:['e','o'],b:['p','d'],c:['k','s'],d:['b','t'],e:['i','a'],f:['v','p'],g:['j','k'],h:['n','r'],
+      i:['e','y'],j:['g','ch'],k:['c','g'],l:['r','i'],m:['n','w'],n:['m','h'],o:['u','a'],p:['b','d'],q:['g','k'],
+      r:['l','n'],s:['c','z'],t:['d','p'],u:['o','a'],v:['f','b'],w:['m','v'],x:['z','s'],y:['i','e'],z:['s','x']
+    };
+    return (map[char]||['e','a']).filter(x=>x.length===1&&x!==char);
+  };
 
-      boxes.forEach((box,i)=>{
-        box.addEventListener('input',()=>{
-          let v=(box.value||'').toLowerCase().replace(/[^a-z]/g,'');
-          if(v.length>1) v=v.slice(-1);
-          box.value=v;
-          box.classList.toggle('filled',!!v);
-          syncHidden();
-          if(v && i<boxes.length-1){
-            boxes[i+1].focus();
-            boxes[i+1].select();
-          }
-        });
-        box.addEventListener('keydown',e=>{
-          if(e.key==='Backspace' && !box.value && i>0){
-            e.preventDefault();
-            boxes[i-1].value='';
-            boxes[i-1].classList.remove('filled');
-            syncHidden();
-            boxes[i-1].focus();
-          }else if(e.key==='ArrowLeft' && i>0){
-            e.preventDefault();boxes[i-1].focus();
-          }else if(e.key==='ArrowRight' && i<boxes.length-1){
-            e.preventDefault();boxes[i+1].focus();
-          }else if(e.key==='Enter'){
-            e.preventDefault();group.closest('.type-wrap')?.querySelector('.submit-answer')?.click();
-          }
-        });
-        box.addEventListener('paste',e=>{
-          const text=(e.clipboardData?.getData('text')||'').toLowerCase().replace(/[^a-z]/g,'');
-          if(!text) return;
-          e.preventDefault();
-          [...text].forEach((ch,j)=>{
-            const target=boxes[i+j];if(target){target.value=ch;target.classList.add('filled')}
-          });
-          syncHidden();
-          const next=boxes[Math.min(i+text.length,boxes.length-1)];next?.focus();
-        });
-      });
+  const shuffle=(arr)=>arr.map(v=>({v,r:Math.random()})).sort((a,b)=>a.r-b.r).map(x=>x.v);
 
-      hidden.addEventListener('input',syncBoxes);
-      hidden.addEventListener('focus',()=>setTimeout(focusBest,0));
-      hidden.addEventListener('select',()=>setTimeout(focusBest,0));
-      group.addEventListener('click',e=>{
-        if(e.target===group||e.target===row) focusBest();
-      });
+  const speakSlow=(word)=>{
+    try{
+      if(!('speechSynthesis' in window)||!word) return;
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(word);
+      u.lang='en-US';u.rate=.62;u.pitch=1.02;
+      speechSynthesis.speak(u);
+    }catch{}
+  };
 
-      syncBoxes();
-      setTimeout(focusBest,20);
+  const clearHint=()=>{
+    document.querySelectorAll('.typing-hint-strip').forEach(x=>x.remove());
+    document.querySelectorAll('.double-badge').forEach(x=>x.remove());
+    document.querySelectorAll('.stage3-letter-box').forEach(x=>x.classList.remove('hint-target','hint-solved','pair-hint'));
+  };
+
+  const showDirectHint=()=>{
+    const ctx=visibleStage3();
+    if(!ctx) return;
+    const wordObj=findWord(ctx);
+    if(!wordObj) return;
+    const word=String(wordObj.word||'').toLowerCase();
+    const correct=word.slice(ctx.before.length,word.length-ctx.after.length);
+    if(correct.length!==ctx.boxes.length) return;
+
+    clearHint();
+    let idx=ctx.boxes.findIndex((b,i)=>(b.value||'').toLowerCase()!==correct[i]);
+    if(idx<0){
+      const box=ctx.boxes[ctx.boxes.length-1];
+      box?.animate([{boxShadow:'0 0 0 0 rgba(120,189,144,0)'},{boxShadow:'0 0 0 8px rgba(120,189,144,.18)'},{boxShadow:'0 0 0 0 rgba(120,189,144,0)'}],{duration:750});
+      box?.focus();
+      return;
+    }
+
+    const target=correct[idx];
+    const box=ctx.boxes[idx];
+    box.classList.add('hint-target');
+
+    const isDouble=correct[idx-1]===target||correct[idx+1]===target;
+    if(isDouble){
+      const n=correct[idx-1]===target?idx-1:idx+1;
+      ctx.boxes[n]?.classList.add('pair-hint');
+      box.classList.add('pair-hint');
+      const badge=document.createElement('span');
+      badge.className='double-badge';badge.textContent='×2';
+      ctx.group.appendChild(badge);
+    }
+
+    const pool=[target,...confusions(target)];
+    const fallbacks=['e','a','i','o','u','b','d','p','t','c','g','s','r','l','m','n','h','f','v','w','y'];
+    for(const c of fallbacks){if(!pool.includes(c))pool.push(c);if(pool.length>=3)break}
+    const choices=shuffle([...new Set(pool)]).slice(0,3);
+
+    const strip=document.createElement('div');
+    strip.className='typing-hint-strip';
+    strip.innerHTML=`<button type="button" class="hint-icon-btn hint-replay" aria-label="Play slowly">🔊</button><div class="hint-letter-choices">${choices.map(c=>`<button type="button" class="hint-letter-choice" data-char="${c}">${c}</button>`).join('')}</div><button type="button" class="hint-icon-btn hint-close" aria-label="Close hint">×</button>`;
+    const wrap=ctx.group.closest('.type-wrap');
+    const submit=wrap?.querySelector('.submit-answer');
+    if(!wrap) return;
+    wrap.insertBefore(strip,submit||null);
+
+    speakSlow(word);
+    strip.querySelector('.hint-close').onclick=()=>{clearHint();box.focus()};
+    strip.querySelector('.hint-replay').onclick=()=>{speakSlow(word);box.focus()};
+    strip.querySelectorAll('.hint-letter-choice').forEach(btn=>btn.onclick=()=>{
+      if(btn.dataset.char!==target){
+        btn.classList.add('wrong');
+        setTimeout(()=>btn.classList.remove('wrong'),430);
+        return;
+      }
+      strip.querySelectorAll('.hint-letter-choice').forEach(x=>x.disabled=true);
+      btn.classList.add('correct');
+      box.value=target;
+      box.classList.add('filled','hint-solved');
+      box.dispatchEvent(new Event('input',{bubbles:true}));
+      const next=ctx.boxes.find((b,i)=>i>idx && (b.value||'').toLowerCase()!==correct[i]);
+      setTimeout(()=>{
+        clearHint();
+        (next||ctx.boxes[Math.min(idx+1,ctx.boxes.length-1)]||box).focus();
+      },700);
     });
   };
 
-  const observer=new MutationObserver(enhance);
+  /* Capture Stage 3 Hint clicks. The main app can still record Hint usage;
+     this direct renderer runs immediately after and replaces any stale UI. */
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest?.('#hintBtn');
+    if(!btn||!visibleStage3()) return;
+    setTimeout(showDirectHint,0);
+  },true);
+
+  /* If Stage 3 is rendered, make sure the first box is keyboard-ready. */
+  const focusStage3=()=>{
+    const ctx=visibleStage3();
+    if(!ctx) return;
+    const active=document.activeElement;
+    if(!ctx.boxes.includes(active)){
+      const first=ctx.boxes.find(b=>!b.value)||ctx.boxes[0];
+      first?.focus();
+    }
+  };
+  const observer=new MutationObserver(()=>setTimeout(focusStage3,0));
   observer.observe(document.documentElement,{childList:true,subtree:true});
-  document.addEventListener('DOMContentLoaded',enhance);
-  setTimeout(enhance,100);
 })();
