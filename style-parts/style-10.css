@@ -1,0 +1,39 @@
+/* v1.6 Collectible reward art: replace emoji-like objects with a cohesive pastel miniature world. */
+.garden-object.treasure{min-width:96px;min-height:96px;display:grid;place-items:center;overflow:visible}
+.garden-object.treasure .art.cute-item-art{display:block;width:108px;height:108px;font-size:0;line-height:0;filter:none;transform-origin:50% 82%;transition:transform .2s ease,filter .2s ease}
+.garden-object.treasure .art.cute-item-art svg{width:100%;height:100%;display:block;overflow:visible;pointer-events:none;filter:drop-shadow(0 8px 8px rgba(81,66,84,.14))}
+.garden-object.treasure:hover .art.cute-item-art{transform:translateY(-3px) scale(1.045)}
+.garden-object.treasure.dragging .art.cute-item-art{transform:scale(1.07)}
+.garden-object.treasure .object-label{bottom:-13px;background:rgba(255,253,255,.92);border:1px solid rgba(220,204,226,.78);box-shadow:0 5px 14px rgba(91,72,97,.09);color:#6c5e72;padding:4px 9px;border-radius:999px;font-size:10px;letter-spacing:.01em}
+
+.garden-object[data-id="bench"] .art.cute-item-art{width:132px;height:100px}
+.garden-object[data-id="treehouse"] .art.cute-item-art{width:145px;height:128px}
+.garden-object[data-id="mailbox"] .art.cute-item-art{width:105px;height:112px}
+.garden-object[data-id="birdhouse"] .art.cute-item-art{width:104px;height:110px}
+.garden-object[data-id="fawn"] .art.cute-item-art{width:113px;height:108px}
+.garden-object[data-id="cat"] .art.cute-item-art{width:108px;height:108px}
+.garden-object[data-id="duck"] .art.cute-item-art{width:106px;height:98px}
+.garden-object[data-id="lantern"] .art.cute-item-art{width:102px;height:110px}
+.garden-object[data-id="mushroom"] .art.cute-item-art{width:105px;height:108px}
+
+.garden-object[data-id="lantern"] .item-glow{animation:itemGlow 2.7s ease-in-out infinite}
+.garden-object[data-id="mushroom"] .mushroom-glow{animation:itemGlow 3.1s ease-in-out infinite}
+.garden-object[data-id="duck"] .animal-bob{animation:cuteBob 2.8s ease-in-out infinite;transform-origin:60px 92px}
+.garden-object[data-id="cat"] .animal-bob{animation:cuteBob 3.2s ease-in-out infinite;transform-origin:60px 100px}
+.garden-object[data-id="fawn"] .animal-bob{animation:cuteBob 3.5s ease-in-out infinite;transform-origin:62px 104px}
+.garden-object[data-id="treehouse"] .tree-sway{animation:treeBreath 5.2s ease-in-out infinite;transform-origin:76px 122px}
+.garden-object[data-id="bench"] .bench-bob{animation:benchSettle 4.8s ease-in-out infinite;transform-origin:75px 95px}
+@keyframes cuteBob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-2.5px) rotate(.7deg)}}
+@keyframes itemGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(255,223,145,0));opacity:.96}50%{filter:drop-shadow(0 0 9px rgba(255,219,135,.54));opacity:1}}
+@keyframes treeBreath{0%,100%{transform:rotate(-.35deg)}50%{transform:rotate(.55deg)}}
+@keyframes benchSettle{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+
+#rewardReveal:has(.cute-reward-art){font-size:0;display:grid;place-items:center;min-height:145px}
+.cute-reward-art{display:block;width:145px;height:145px;animation:rewardPop .72s cubic-bezier(.2,.85,.28,1.25) both}
+.cute-reward-art svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 14px 15px rgba(91,65,104,.15))}
+@keyframes rewardPop{0%{opacity:0;transform:scale(.55) rotate(-7deg)}65%{opacity:1;transform:scale(1.08) rotate(2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+
+@media(max-width:900px){
+  .garden-object.treasure .art.cute-item-art{transform:scale(.92)}
+  .garden-object.treasure:hover .art.cute-item-art{transform:translateY(-2px) scale(.96)}
+}
