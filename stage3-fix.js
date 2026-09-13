@@ -148,3 +148,13 @@
   s.dataset.stage4Helper='1';
   document.head.appendChild(s);
 })();
+
+/* Load Garden collectible illustrations as a separate visual layer. */
+(()=>{
+  if(document.querySelector('script[data-cute-items]')) return;
+  const s=document.createElement('script');
+  s.src='cute-items.js';
+  s.defer=true;
+  s.dataset.cuteItems='1';
+  document.head.appendChild(s);
+})();
