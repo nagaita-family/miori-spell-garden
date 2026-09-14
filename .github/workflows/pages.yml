@@ -1,0 +1,70 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Enable GitHub Pages if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          code=$(curl -sS -o /tmp/pages.json -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")
+          if [ "$code" = "404" ]; then
+            code=$(curl -sS -o /tmp/pages-create.json -w "%{http_code}" \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" \
+              -d '{"build_type":"workflow"}')
+            if [ "$code" != "201" ] && [ "$code" != "409" ]; then
+              cat /tmp/pages-create.json
+              exit 1
+            fi
+          elif [ "$code" != "200" ]; then
+            cat /tmp/pages.json
+            exit 1
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          cp index.html app-loader.js stage3-fix.js stage4-fix.js cute-items.js styles-bundle.css sw.js manifest.webmanifest icon.svg .nojekyll _site/
+          cp -R app-parts style-parts _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
