@@ -6,7 +6,7 @@ A Chromebook-first spelling practice game for Miori.
 
 GitHub Pages: https://nagaitashouten-star.github.io/miori-spell-garden/
 
-The site is deployed automatically from `main` by `.github/workflows/pages.yml`.
+GitHub Pages publishes from the `gh-pages` branch. `main` remains the working branch; when the app is updated, the finished `main` commit is mirrored to `gh-pages` for publication.
 
 ## Product structure
 
@@ -23,9 +23,9 @@ The site is deployed automatically from `main` by `.github/workflows/pages.yml`.
 - `style-parts/` + `styles-bundle.css` — UI styles
 - `manifest.webmanifest` / `sw.js` — PWA support, written to work under the GitHub Pages project path
 - `word-pack-sept-17-unit-5a.json` — bundled school Word Pack reference
-- `.github/workflows/pages.yml` — GitHub Pages deployment
+- `.nojekyll` — publishes the static files directly on GitHub Pages
 
-`netlify.toml` has been removed; GitHub Pages is the primary publication path.
+Netlify-specific repository configuration has been removed. GitHub Pages is the primary publication path.
 
 ## Data
 
