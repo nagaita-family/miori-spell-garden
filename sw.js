@@ -1,4 +1,4 @@
-const CACHE='spell-garden-pages-v1';
+const CACHE='spell-garden-pages-v2';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
