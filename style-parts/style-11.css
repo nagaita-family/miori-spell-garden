@@ -1,0 +1,135 @@
+/* Stage 4: one visible input box per letter. The original full input remains only as the app's data bridge. */
+.stage4-source-input{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:0!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  clip-path:inset(50%)!important;
+}
+.stage4-box-row{
+  position:relative;
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  margin:4px auto 18px;
+  padding:10px 8px 16px;
+}
+.stage4-letter-box{
+  width:clamp(43px,4.8vw,57px);
+  height:clamp(57px,6.2vw,70px);
+  box-sizing:border-box;
+  border:2px solid #e7dfea;
+  border-radius:16px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 6px 14px rgba(89,75,101,.07),inset 0 -2px 0 rgba(115,90,130,.035);
+  color:#544957;
+  text-align:center;
+  font:800 clamp(27px,3vw,36px)/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-transform:lowercase;
+  caret-color:#9c75c0;
+  outline:none;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease,color .16s ease;
+}
+.stage4-letter-box:focus{
+  border-color:#b696d3;
+  box-shadow:0 0 0 5px rgba(181,150,211,.15),0 8px 17px rgba(89,75,101,.09);
+  transform:translateY(-2px);
+}
+.stage4-letter-box.stage4-ok{
+  border-color:#83c7a0;
+  background:#effaf3;
+  color:#397855;
+  box-shadow:0 0 0 3px rgba(116,190,145,.10);
+}
+.stage4-letter-box.stage4-bad{
+  border-color:#ee9ca6;
+  background:#fff1f3;
+  color:#bd5d6a;
+  animation:stage4BoxNudge .34s ease;
+}
+.stage4-letter-box.hint-target{
+  border-color:#a67dcb!important;
+  background:#fbf7ff!important;
+  color:#654c79;
+  box-shadow:0 0 0 7px rgba(166,125,203,.16),0 0 24px rgba(174,135,210,.22)!important;
+  transform:translateY(-3px) scale(1.04);
+  animation:stage4HintPulse 1.05s ease-in-out infinite;
+}
+.stage4-letter-box.pair-hint{
+  border-color:#c59cdb!important;
+  background:#fff8ff!important;
+}
+.stage4-letter-box.hint-solved{
+  border-color:#84c9a1;
+  background:#effaf3;
+  color:#397855;
+  animation:stage4SolvedPop .5s ease;
+}
+.stage4-box-hint-controls{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  min-height:72px;
+  margin:-3px auto 14px;
+}
+.stage4-letter-choices{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+}
+.stage4-letter-choice{
+  width:58px;
+  height:58px;
+  border:2px solid #e5dbea;
+  border-radius:17px;
+  background:#fff;
+  color:#5a4b60;
+  box-shadow:0 6px 13px rgba(91,76,101,.08);
+  font:800 29px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  cursor:pointer;
+  transition:transform .14s ease,border-color .14s ease,background .14s ease;
+}
+.stage4-letter-choice:hover{transform:translateY(-2px);border-color:#c6acd9}
+.stage4-letter-choice.wrong{border-color:#ef9aa6;background:#fff0f2;animation:stage4BoxNudge .3s ease}
+.stage4-letter-choice.correct{border-color:#84c9a1;background:#eefaf3;transform:scale(1.07)}
+.stage4-hint-icon{
+  width:48px;
+  height:48px;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,.88);
+  box-shadow:0 5px 13px rgba(91,76,101,.08);
+  color:#7a6b80;
+  font-size:20px;
+  font-weight:800;
+  cursor:pointer;
+}
+.stage4-double-badge{
+  position:absolute;
+  top:-2px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:4px 9px;
+  border-radius:999px;
+  background:#f4e9ff;
+  color:#8b64aa;
+  box-shadow:0 3px 9px rgba(126,89,151,.10);
+  font:900 13px/1 system-ui,sans-serif;
+}
+@keyframes stage4BoxNudge{0%,100%{transform:translateX(0)}33%{transform:translateX(-4px)}66%{transform:translateX(4px)}}
+@keyframes stage4HintPulse{0%,100%{box-shadow:0 0 0 6px rgba(166,125,203,.12),0 0 20px rgba(174,135,210,.18)}50%{box-shadow:0 0 0 10px rgba(166,125,203,.07),0 0 28px rgba(174,135,210,.25)}}
+@keyframes stage4SolvedPop{0%{transform:scale(.92)}55%{transform:scale(1.09)}100%{transform:scale(1)}}
+@media(max-width:760px){
+  .stage4-box-row{gap:7px;padding-inline:2px}
+  .stage4-letter-box{width:clamp(38px,8vw,50px);height:clamp(52px,10vw,62px);border-radius:13px;font-size:clamp(24px,6vw,31px)}
+  .stage4-letter-choice{width:52px;height:52px;font-size:26px}
+}
