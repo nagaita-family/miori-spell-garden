@@ -4,9 +4,17 @@ A Chromebook-first spelling practice game for Miori.
 
 ## Live site
 
-GitHub Pages: https://nagaitashouten-star.github.io/miori-spell-garden/
+Production: https://family.nagaita.jp/miori-spell-garden/
 
-GitHub Pages publishes from the `gh-pages` branch. `main` remains the working branch; when the app is updated, the finished `main` commit is mirrored to `gh-pages` for publication.
+Family home: https://family.nagaita.jp/
+
+The app is published from `main` with GitHub Actions using `.github/workflows/pages.yml`.
+
+## Repository
+
+GitHub: `nagaita-family/miori-spell-garden`
+
+This repository is the source of truth for future development. Do not use the old personal repository as the development target.
 
 ## Product structure
 
@@ -21,11 +29,19 @@ GitHub Pages publishes from the `gh-pages` branch. `main` remains the working br
 - `stage3-fix.js` / `stage4-fix.js` — focused visual Hint behavior
 - `cute-items.js` — collectible Garden artwork layer
 - `style-parts/` + `styles-bundle.css` — UI styles
-- `manifest.webmanifest` / `sw.js` — PWA support, written to work under the GitHub Pages project path
+- `manifest.webmanifest` / `sw.js` — PWA support
 - `word-pack-sept-17-unit-5a.json` — bundled school Word Pack reference
+- `.github/workflows/pages.yml` — GitHub Pages deployment from `main`
 - `.nojekyll` — publishes the static files directly on GitHub Pages
 
-Netlify-specific repository configuration has been removed. GitHub Pages is the primary publication path.
+## Path and PWA rules
+
+The production app lives under `/miori-spell-garden/`, so assets should use relative paths wherever possible.
+
+- Avoid root-absolute paths such as `/app.js` or `/images/...`.
+- Prefer relative references such as `app-loader.js`, `style-parts/...`, and `icon.svg`.
+- PWA `start_url` must remain `./`.
+- PWA `scope` must remain `./`.
 
 ## Data
 
